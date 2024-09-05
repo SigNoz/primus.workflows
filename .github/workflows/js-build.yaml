@@ -1,0 +1,85 @@
+name: js-build
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      DOCKER_BASE_IMAGES:
+        description: 'List of docker base images in json.'
+        required: true
+        type: string
+      DOCKER_DOCKERFILE_PATH:
+        description: 'Path to dockerfile.'
+        required: true
+        type: string
+      DOCKER_MANIFEST:
+        description: 'Whether to push the docker image or not.'
+        required: true
+        type: boolean
+      DOCKER_ARCHS:
+        description: 'List of architectures to build the docker image.'
+        default: 'amd64 arm64'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+  
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_type == 'tag' && 'production' || github.ref_name == 'main' && 'staging' || 'review' }}
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: qemu-install
+        uses: docker/setup-qemu-action@v3
+      - name: info
+        run: |
+          $MAKE info
+      - name: docker-build
+        run: |
+          $MAKE docker-build DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+      - name: gcp-signoz
+        if: ${{ inputs.DOCKER_MANIFEST }}
+        run: |
+          echo "GCP_PROJECT_ID=$($MAKE signoz-gcp-project-id)" >> $GITHUB_ENV
+          echo "GCP_WORKLOAD_IDENTITY_PROVIDER=$($MAKE signoz-gcp-workload-identity-provider)" >> $GITHUB_ENV
+          echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV
+      - name: gcp-auth
+        if: ${{ inputs.DOCKER_MANIFEST }}
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+      - name: sdk-install
+        if: ${{ inputs.DOCKER_MANIFEST }}
+        uses: 'google-github-actions/setup-gcloud@v2'
+      - name: docker-manifest
+        if: ${{ inputs.DOCKER_MANIFEST }}
+        run: |
+          $MAKE docker-login-gcp docker-push docker-manifest DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"

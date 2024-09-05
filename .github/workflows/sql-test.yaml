@@ -1,0 +1,60 @@
+name: sql-test
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      SQL_SRC:
+        description: 'The directory path containing the sql files.'
+        required: true
+        type: string
+      SQL_URL:
+        description: 'The url of the dev database.'
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+  
+jobs:
+  sql:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_type == 'tag' && 'production' || github.ref_name == 'main' && 'staging' || 'review' }}
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: go-install
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: info
+        run: |
+          $MAKE info
+      - name: sql-test
+        run: |
+          $MAKE sql-test SQL_SRC="${{ inputs.SQL_SRC }}" SQL_URL="${{ inputs.SQL_URL }}"
