@@ -102,4 +102,4 @@ jobs:
       - name: push-to-dockerhub
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          $MAKE docker-login-dockerhub docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          $MAKE docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
