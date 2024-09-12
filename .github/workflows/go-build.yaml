@@ -27,7 +27,10 @@ on:
         description: 'Whether to push the docker image or not.'
         required: true
         type: boolean
-
+      PROVIDERS:
+        description: 'Comma-separated list of providers (aws, gcp, dockerhub)'
+        required: true
+        type: string
 defaults:
   run:
     shell: bash
@@ -66,11 +69,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: info
         run: |
           $MAKE info
@@ -86,20 +84,18 @@ jobs:
           echo "GCP_PROJECT_ID=$($MAKE signoz-gcp-project-id)" >> $GITHUB_ENV
           echo "GCP_WORKLOAD_IDENTITY_PROVIDER=$($MAKE signoz-gcp-workload-identity-provider)" >> $GITHUB_ENV
           echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV
-      - name: gcp-auth
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/auth@v2'
-        with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
-      - name: sdk-install
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/setup-gcloud@v2'
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
+        env:
+          PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
+          WORKLOAD_IDENTITY_PROVIDER: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ env.GCP_SERVICE_ACCOUNT }}
         run: |
-          $MAKE docker-login-gcp docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
-      - name: push-to-dockerhub
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        run: |
-          $MAKE docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          IFS=',' read -r -a providers <<< "${{ inputs.PROVIDERS }}"
+          for provider in "${providers[@]}"; do
+            if [ "$provider" == "gcp" ]; then
+              $MAKE gcp-auth
+              $MAKE gcp-sdk-install
+            fi
+            make docker-login-$provider docker-push docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          done
