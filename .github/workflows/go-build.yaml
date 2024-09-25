@@ -31,6 +31,11 @@ on:
         description: 'Comma-separated list of providers (aws, gcp, dockerhub)'
         required: true
         type: string
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_PASSWORD:
+        required: true
 defaults:
   run:
     shell: bash
@@ -91,7 +96,7 @@ jobs:
           WORKLOAD_IDENTITY_PROVIDER: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           SERVICE_ACCOUNT: ${{ env.GCP_SERVICE_ACCOUNT }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           IFS=',' read -r -a providers <<< "${{ inputs.PROVIDERS }}"
           for provider in "${providers[@]}"; do
