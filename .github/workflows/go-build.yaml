@@ -31,11 +31,6 @@ on:
         description: 'Comma-separated list of providers (aws, gcp, dockerhub)'
         required: true
         type: string
-    secrets:
-      DOCKERHUB_USERNAME:
-        required: true
-      DOCKERHUB_TOKEN:
-        required: true
 defaults:
   run:
     shell: bash
