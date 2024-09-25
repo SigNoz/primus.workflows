@@ -54,10 +54,14 @@ jobs:
           cache: "pnpm"
       - name: deps-install
         run: pnpm install
+      - name: setup-git
+        run: |
+          $MAKE git-user
       - name: create-release
         uses: changesets/action@v1
         with:
           publish: pnpm release
+          setupGitUser: false
         env:
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
           NPM_TOKEN: ${{ secrets.PRIMUS_NPM_TOKEN }}
