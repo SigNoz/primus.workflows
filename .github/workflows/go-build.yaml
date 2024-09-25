@@ -100,10 +100,6 @@ jobs:
         run: |
           IFS=',' read -r -a providers <<< "${{ inputs.PROVIDERS }}"
           for provider in "${providers[@]}"; do
-            if [ "$provider" == "gcp" ]; then
-              $MAKE gcp-auth
-              $MAKE gcp-sdk-install
-            fi
             echo "Running make with target: docker-login-$provider"
             $MAKE docker-login-$provider docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
           done
