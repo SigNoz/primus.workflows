@@ -62,6 +62,7 @@ jobs:
         with:
           publish: pnpm release
           setupGitUser: false
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
           NPM_TOKEN: ${{ secrets.PRIMUS_NPM_TOKEN }}
