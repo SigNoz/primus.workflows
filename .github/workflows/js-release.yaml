@@ -43,3 +43,21 @@ jobs:
       - name: info
         run: |
           $MAKE info
+      - name: pnpm-install
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+      - name: node-install
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+      - name: deps-install
+        run: pnpm install
+      - name: create-release
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          NPM_TOKEN: ${{ secrets.PRIMUS_NPM_TOKEN }}
