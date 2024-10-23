@@ -19,7 +19,6 @@ env:
 jobs:
   go:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_type == 'tag' && 'production' || github.ref_name == 'main' && 'staging' || 'review' }}
     permissions:
       contents: 'read'
       id-token: 'write'
