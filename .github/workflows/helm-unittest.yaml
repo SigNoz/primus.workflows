@@ -39,11 +39,9 @@ jobs:
           ref: ${{ inputs.PRIMUS_REF }}
           path: .primus
           token: ${{ steps.token.outputs.token }}
-      - name: ct-install
-        uses: helm/chart-testing-action@v2.6.1
       - name: info
         run: |
           $MAKE info
       - name: helm-unittest
         run: |
-          $MAKE helm-unittest HELM_CHARTS="$(ct list-changed --config ct.yaml)"
+          $MAKE helm-unittest
