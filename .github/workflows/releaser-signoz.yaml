@@ -1,0 +1,66 @@
+name: releaser-signoz
+
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      SIGNOZ_VERSION:
+        description: 'The version of SigNoz to release.'
+        required: true
+        type: string
+      SIGNOZ_ROOT_DIR:
+        description: 'The root directory of the SigNoz repo.'
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      pull-requests: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: info
+        run: |
+          $MAKE info
+      - name: releaser-signoz
+        run: |
+          $MAKE releaser-signoz RELEASER_ARGS="-v ${{ inputs.VERSION }} -d ${{ inputs.SIGNOZ_ROOT_DIR }}"
+      - name: create-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git checkout -b release-${{ inputs.VERSION }}
+          git add .
+          git commit -m 'Release ${inputs.VERSION}' --allow-empty
+          git push origin release-${{ inputs.VERSION }}
+          gh pr create -B main -H release-${{ inputs.VERSION }} --title 'Release ${inputs.VERSION}' --body 'Created by Primus'
