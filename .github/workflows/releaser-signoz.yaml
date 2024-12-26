@@ -56,12 +56,13 @@ jobs:
         run: |
           $MAKE releaser-signoz RELEASER_ARGS="-v ${{ env.NEW_RELEASE_VERSION }}"
       - name: create-pr
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
-          git config user.name "primus-bot[bot]"
-          git config user.email "171087277+primus-bot[bot]@users.noreply.github.com"
+          git config --global user.name "primus-bot[bot]"
+          git config --global user.email "171087277+primus-bot[bot]@users.noreply.github.com"
           git checkout -b release-${{ env.NEW_RELEASE_VERSION }}
           git add .
           git commit -m 'Release ${env.NEW_RELEASE_VERSION}' --allow-empty
           git push origin release-${{ env.NEW_RELEASE_VERSION }}
-          gh auth login --with-token < ${{ steps.token.outputs.token }}
           gh pr create -B main -H release-${{ env.NEW_RELEASE_VERSION }} --title 'chore(release): bump to ${env.NEW_RELEASE_VERSION}' --body 'Release SigNoz ${env.NEW_RELEASE_VERSION}'
