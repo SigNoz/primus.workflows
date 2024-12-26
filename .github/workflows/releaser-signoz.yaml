@@ -24,7 +24,6 @@ jobs:
       contents: 'write'
       id-token: 'write'
       pull-requests: 'write'
-      repository-projects: 'write'
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
@@ -66,10 +65,9 @@ jobs:
           RELEASE_VERSION: ${{ env.NEW_RELEASE_VERSION }}
         run: |
           git checkout -b release-${RELEASE_VERSION}
-          git add .
-          git commit -m 'Release ${RELEASE_VERSION}'
+          git add deploy
+          git commit -m 'chore(release): bump to ${RELEASE_VERSION}'
           git push origin release-${RELEASE_VERSION}
-          echo -e "#### Summary\n - Release SigNoz ${RELEASE_VERSION}\n\n Created by [Primus-Bot](https://github.com/apps/primus-bot)\n\n" > release-msg.txt
-          export RELEASE_PR_BODY=$(cat release-msg.txt)
-          rm release-msg.txt
-          gh pr create -B main -H release-${RELEASE_VERSION} --title 'chore(release): bump to ${RELEASE_VERSION}' --body "${RELEASE_PR_BODY}"
+          RELEASE_PR_BODY=$( echo -e "#### Summary\n - Release SigNoz ${RELEASE_VERSION}\n\n Created by [Primus-Bot](https://github.com/apps/primus-bot)\n\n" )
+          RELEASE_PR_TITLE=$( echo -e "chore(release): bump to ${RELEASE_VERSION}" )
+          gh pr create -B main -H release-${RELEASE_VERSION} --title "${RELEASE_PR_TITLE}" --body "${RELEASE_PR_BODY}"
