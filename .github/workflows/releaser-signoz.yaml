@@ -66,7 +66,7 @@ jobs:
         run: |
           git checkout -b release-${RELEASE_VERSION}
           git add deploy
-          git commit -m 'chore(release): bump to ${RELEASE_VERSION}'
+          git commit -m "chore(release): bump to ${RELEASE_VERSION}"
           git push origin release-${RELEASE_VERSION}
           RELEASE_PR_BODY=$( echo -e "#### Summary\n - Release SigNoz ${RELEASE_VERSION}\n\n Created by [Primus-Bot](https://github.com/apps/primus-bot)\n\n" )
           RELEASE_PR_TITLE=$( echo -e "chore(release): bump to ${RELEASE_VERSION}" )
