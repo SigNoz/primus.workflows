@@ -61,7 +61,7 @@ jobs:
           $MAKE releaser-signoz RELEASER_ARGS="-v ${{ env.NEW_RELEASE_VERSION }}"
       - name: create-pr
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           git checkout -b release-${{ env.NEW_RELEASE_VERSION }}
           git add .
