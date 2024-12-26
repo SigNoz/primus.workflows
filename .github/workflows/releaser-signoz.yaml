@@ -18,7 +18,7 @@ env:
   MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
 
 jobs:
-  releaser:
+  signoz:
     runs-on: ubuntu-latest
     permissions:
       contents: 'write'
