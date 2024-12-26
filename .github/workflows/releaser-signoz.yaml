@@ -24,6 +24,7 @@ jobs:
       contents: 'write'
       id-token: 'write'
       pull-requests: 'write'
+      repository-projects: 'write'
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
@@ -41,6 +42,10 @@ jobs:
           ref: ${{ inputs.PRIMUS_REF }}
           path: .primus
           token: ${{ steps.token.outputs.token }}
+      - name: git-configure
+        run: |
+          git config --global user.name "primus-bot[bot]"
+          git config --global user.email "171087277+primus-bot[bot]@users.noreply.github.com"
       - name: info
         run: |
           $MAKE info
@@ -59,10 +64,11 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
-          git config --global user.name "primus-bot[bot]"
-          git config --global user.email "171087277+primus-bot[bot]@users.noreply.github.com"
           git checkout -b release-${{ env.NEW_RELEASE_VERSION }}
           git add .
           git commit -m 'Release ${env.NEW_RELEASE_VERSION}' --allow-empty
           git push origin release-${{ env.NEW_RELEASE_VERSION }}
-          gh pr create -B main -H release-${{ env.NEW_RELEASE_VERSION }} --title 'chore(release): bump to ${env.NEW_RELEASE_VERSION}' --body 'Release SigNoz ${env.NEW_RELEASE_VERSION}'
+          echo -e "#### Summary\n - Release SigNoz ${env.NEW_RELEASE_VERSION}\n\n Created by [Primus-Bot](https://github.com/apps/primus-bot)\n\n" > release-msg.txt
+          export RELEASE_PR_BODY=$(cat release-msg.txt)
+          rm release-msg.txt
+          gh pr create -B main -H release-${{ env.NEW_RELEASE_VERSION }} --title 'chore(release): bump to ${env.NEW_RELEASE_VERSION}' --body "${RELEASE_PR_BODY}"
