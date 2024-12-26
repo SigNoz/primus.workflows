@@ -63,12 +63,13 @@ jobs:
       - name: create-pr
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
+          RELEASE_VERSION: ${{ env.NEW_RELEASE_VERSION }}
         run: |
-          git checkout -b release-${{ env.NEW_RELEASE_VERSION }}
+          git checkout -b release-${RELEASE_VERSION}
           git add .
-          git commit -m 'Release ${env.NEW_RELEASE_VERSION}' --allow-empty
-          git push origin release-${{ env.NEW_RELEASE_VERSION }}
-          echo -e "#### Summary\n - Release SigNoz ${env.NEW_RELEASE_VERSION}\n\n Created by [Primus-Bot](https://github.com/apps/primus-bot)\n\n" > release-msg.txt
+          git commit -m 'Release ${RELEASE_VERSION}'
+          git push origin release-${RELEASE_VERSION}
+          echo -e "#### Summary\n - Release SigNoz ${RELEASE_VERSION}\n\n Created by [Primus-Bot](https://github.com/apps/primus-bot)\n\n" > release-msg.txt
           export RELEASE_PR_BODY=$(cat release-msg.txt)
           rm release-msg.txt
-          gh pr create -B main -H release-${{ env.NEW_RELEASE_VERSION }} --title 'chore(release): bump to ${env.NEW_RELEASE_VERSION}' --body "${RELEASE_PR_BODY}"
+          gh pr create -B main -H release-${RELEASE_VERSION} --title 'chore(release): bump to ${RELEASE_VERSION}' --body "${RELEASE_PR_BODY}"
