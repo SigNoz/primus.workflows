@@ -1,4 +1,4 @@
-name: releaser-signoz
+name: releaser
 
 on:
   workflow_call:
@@ -7,6 +7,16 @@ on:
         description: 'The primus ref to checkout.'
         required: true
         default: 'main'
+        type: string
+      PROJECT_NAME:
+        description: 'The name of the project to release.'
+        required: true
+        default: 'signoz'
+        type: string
+      RELEASE_TYPE:
+        description: 'The type of release to create.'
+        required: true
+        default: 'minor'
         type: string
 
 defaults:
@@ -48,26 +58,8 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: generate-release-version
-        run: |
-          RELEASE_VERSION=$(curl -s https://api.github.com/repos/signoz/signoz/releases/latest | jq -r '.tag_name')
-          MAJOR_VERSION=$(echo $RELEASE_VERSION | cut -d. -f1 | tr -d 'v')
-          MINOR_VERSION=$(echo $RELEASE_VERSION | cut -d. -f2)
-          NEW_MINOR_VERSION=$((MINOR_VERSION + 1))
-          NEW_RELEASE_VERSION="v${MAJOR_VERSION}.${NEW_MINOR_VERSION}.0"
-          echo "NEW_RELEASE_VERSION=${NEW_RELEASE_VERSION}" >> $GITHUB_ENV
-      - name: releaser-signoz
-        run: |
-          $MAKE releaser-signoz RELEASER_ARGS="-v ${{ env.NEW_RELEASE_VERSION }}"
-      - name: create-pr
+      - name: releaser
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          RELEASE_VERSION: ${{ env.NEW_RELEASE_VERSION }}
         run: |
-          git checkout -b release-${RELEASE_VERSION}
-          git add deploy
-          git commit -m "chore(release): bump to ${RELEASE_VERSION}"
-          git push origin release-${RELEASE_VERSION}
-          RELEASE_PR_BODY=$( echo -e "#### Summary\n - Release SigNoz ${RELEASE_VERSION}\n\n Created by [Primus-Bot](https://github.com/apps/primus-bot)\n\n" )
-          RELEASE_PR_TITLE=$( echo -e "chore(release): bump to ${RELEASE_VERSION}" )
-          gh pr create -B main -H release-${RELEASE_VERSION} --title "${RELEASE_PR_TITLE}" --body "${RELEASE_PR_BODY}"
+          $MAKE releaser RELEASER_ARGS="-p ${{ inputs.PROJECT_NAME }} -t ${{ inputs.RELEASE_TYPE }}"
