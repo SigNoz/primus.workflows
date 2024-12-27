@@ -54,5 +54,7 @@ jobs:
         run: |
           $MAKE info
       - name: releaser-signoz
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           $MAKE releaser RELEASER_ARGS="-p signoz -t ${{ inputs.RELEASE_TYPE }}"
