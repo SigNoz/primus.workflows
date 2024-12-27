@@ -55,4 +55,4 @@ jobs:
           $MAKE info
       - name: releaser-signoz
         run: |
-          $MAKE releaser-signoz RELEASER_ARGS="-p signoz -t ${{ inputs.RELEASE_TYPE }}"
+          $MAKE releaser RELEASER_ARGS="-p signoz -t ${{ inputs.RELEASE_TYPE }}"
