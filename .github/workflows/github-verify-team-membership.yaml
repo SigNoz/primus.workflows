@@ -1,0 +1,61 @@
+name: github-verify-team-membership
+
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      TEAM_NAME:
+        description: 'The name of the team to verify membership.'
+        required: true
+        default: 'releaser'
+        type: string
+      MEMBER_NAME:
+        description: 'The name of the member to verify membership.'
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  signoz:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: info
+        run: |
+          $MAKE info
+      - name: verify-releaser-team-membership
+        run: |
+          $MAKE github-verify-team-membership \
+            GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
+              -n ${{ inputs.TEAM_NAME }} \
+              -u ${{ inputs.MEMBER_NAME }}"

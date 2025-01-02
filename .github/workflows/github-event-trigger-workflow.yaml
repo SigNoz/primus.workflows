@@ -1,0 +1,64 @@
+name: github-event-trigger-workflow
+
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      REPOSITORY_NAME:
+        description: 'The name of the repository with the GitHub workflow to trigger.'
+        required: true
+        type: string
+      EVENT_NAME:
+        description: 'The name of the event to trigger.'
+        required: true
+        type: string
+      EVENT_PAYLOAD:
+        description: 'The payload of the event to trigger.'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  signoz:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: info
+        run: |
+          $MAKE info
+      - name: event-trigger-workflow
+        run: |
+          $MAKE github-event-trigger-workflow \
+            GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
+              -r ${{ inputs.REPOSITORY_NAME }} \
+              -e ${{ inputs.EVENT_NAME }} \
+              -p ${{ inputs.EVENT_PAYLOAD }}"
