@@ -30,9 +30,8 @@ jobs:
   signoz:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'write'
+      contents: 'read'
       id-token: 'write'
-      pull-requests: 'write'
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
