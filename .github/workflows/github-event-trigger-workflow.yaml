@@ -18,6 +18,7 @@ on:
         type: string
       EVENT_PAYLOAD:
         description: 'The payload of the event to trigger.'
+        default: '{}'
         type: string
 
 defaults:
