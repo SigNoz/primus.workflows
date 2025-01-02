@@ -1,4 +1,4 @@
-name: github-verify-team-membership
+name: github-verify
 
 on:
   workflow_call:
