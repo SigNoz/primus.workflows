@@ -1,4 +1,4 @@
-name: github-event-trigger-workflow
+name: github-trigger
 
 on:
   workflow_call:
@@ -8,15 +8,15 @@ on:
         required: true
         default: 'main'
         type: string
-      REPOSITORY_NAME:
+      GITHUB_REPOSITORY_NAME:
         description: 'The name of the repository with the GitHub workflow to trigger.'
         required: true
         type: string
-      EVENT_NAME:
+      GITHUB_EVENT_NAME:
         description: 'The name of the event to trigger.'
         required: true
         type: string
-      EVENT_PAYLOAD:
+      GITHUB_EVENT_PAYLOAD:
         description: 'The payload of the event to trigger.'
         default: '{}'
         type: string
@@ -55,10 +55,10 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: event-trigger-workflow
+      - name: trigger
         run: |
           $MAKE github-event-trigger-workflow \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
-              -r ${{ inputs.REPOSITORY_NAME }} \
-              -e ${{ inputs.EVENT_NAME }} \
-              -p ${{ inputs.EVENT_PAYLOAD }}"
+              -r ${{ inputs.GITHUB_REPOSITORY_NAME }} \
+              -e ${{ inputs.GITHUB_EVENT_NAME }} \
+              -p ${{ inputs.GITHUB_EVENT_PAYLOAD }}"

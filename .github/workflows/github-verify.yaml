@@ -8,12 +8,12 @@ on:
         required: true
         default: 'main'
         type: string
-      TEAM_NAME:
+      GITHUB_TEAM_NAME:
         description: 'The name of the team to verify membership.'
         required: true
         default: 'releaser'
         type: string
-      MEMBER_NAME:
+      GITHUB_MEMBER_NAME:
         description: 'The name of the member to verify membership.'
         required: true
         type: string
@@ -52,9 +52,9 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: verify-releaser-team-membership
+      - name: verify
         run: |
           $MAKE github-verify-team-membership \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
-              -n ${{ inputs.TEAM_NAME }} \
-              -u ${{ inputs.MEMBER_NAME }}"
+              -n ${{ inputs.GITHUB_TEAM_NAME }} \
+              -u ${{ inputs.GITHUB_MEMBER_NAME }}"
