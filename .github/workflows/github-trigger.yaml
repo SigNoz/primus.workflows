@@ -56,9 +56,15 @@ jobs:
         run: |
           $MAKE info
       - name: trigger
+        env:
+          GH_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY_NAME }}
+          GH_EVENT_NAME: ${{ inputs.GITHUB_EVENT_NAME }}
+          GH_EVENT_PAYLOAD: ${{ inputs.GITHUB_EVENT_PAYLOAD }}
         run: |
+          GH_EVENT_PAYLOAD=$(echo "${GH_EVENT_PAYLOAD}" | jq -c . | jq -rR .)
+          echo "compacted GH_EVENT_PAYLOAD: ${GH_EVENT_PAYLOAD}"
           $MAKE github-event-trigger-workflow \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
-              -r ${{ inputs.GITHUB_REPOSITORY_NAME }} \
-              -e ${{ inputs.GITHUB_EVENT_NAME }} \
-              -p ${{ inputs.GITHUB_EVENT_PAYLOAD }}"
+              -r ${GH_REPOSITORY} \
+              -e ${GH_EVENT_NAME} \
+              -p '${GH_EVENT_PAYLOAD}'"
