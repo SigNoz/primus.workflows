@@ -8,6 +8,11 @@ on:
         required: true
         default: 'main'
         type: string
+      GITHUB_ISSUE_NUMBER:
+        description: 'The issue number to add the label to.'
+        required: false
+        type: string
+        default: ${{ github.event.pull_request.number || github.event.issue.number }}
       GITHUB_LABEL_NAME:
         description: 'The name of the label to add.'
         required: true
@@ -50,7 +55,7 @@ jobs:
       - name: add-label
         env:
           GH_REPOSITORY: ${{ github.repository }}
-          GH_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_ISSUE_NUMBER: ${{ inputs.GITHUB_ISSUE_NUMBER }}
           GH_LABEL_NAME: ${{ inputs.GITHUB_LABEL_NAME }}
         run: |
           $MAKE github-add-label \
