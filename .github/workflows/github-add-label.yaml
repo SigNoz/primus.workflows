@@ -1,4 +1,5 @@
-name: go-lint
+name: github-add-label
+
 on:
   workflow_call:
     inputs:
@@ -6,6 +7,15 @@ on:
         description: 'The primus ref to checkout.'
         required: true
         default: 'main'
+        type: string
+      GITHUB_ISSUE_NUMBER:
+        description: 'The issue number to add the label to.'
+        required: false
+        type: string
+        default: ${{ github.event.pull_request.number || github.event.issue.number }}
+      GITHUB_LABEL_NAME:
+        description: 'The name of the label to add.'
+        required: true
         type: string
 
 defaults:
@@ -15,9 +25,9 @@ defaults:
 env:
   PRIMUS_HOME: .primus
   MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
-  
+
 jobs:
-  go:
+  signoz:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
@@ -25,9 +35,6 @@ jobs:
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
@@ -42,13 +49,17 @@ jobs:
           ref: ${{ inputs.PRIMUS_REF }}
           path: .primus
           token: ${{ steps.token.outputs.token }}
-      - name: go-install
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
       - name: info
         run: |
           $MAKE info
-      - name: go-lint
+      - name: add-label
+        env:
+          GH_REPOSITORY: ${{ github.repository }}
+          GH_ISSUE_NUMBER: ${{ inputs.GITHUB_ISSUE_NUMBER }}
+          GH_LABEL_NAME: ${{ inputs.GITHUB_LABEL_NAME }}
         run: |
-          $MAKE go-lint
+          $MAKE github-add-label \
+            GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
+              -r ${GH_REPOSITORY} \
+              -i ${GH_ISSUE_NUMBER} \
+              -l '${GH_LABEL_NAME}'"
