@@ -8,13 +8,17 @@ on:
         required: true
         default: 'main'
         type: string
+      GITHUB_LABEL_ACTION:
+        description: 'The action to perform on the label. Valid values are "add" or "remove".'
+        required: true
+        type: string
       GITHUB_ISSUE_NUMBER:
-        description: 'The issue number to add the label to.'
+        description: 'The issue number to add/remove the label from.'
         required: false
         type: string
         default: ${{ github.event.pull_request.number || github.event.issue.number }}
       GITHUB_LABEL_NAME:
-        description: 'The name of the label to add.'
+        description: 'The name of the label to add/remove.'
         required: true
         type: string
 
@@ -52,14 +56,20 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: add-label
+      - name: label
         env:
+          GH_LABEL_ACTION: ${{ inputs.GITHUB_LABEL_ACTION }}
           GH_REPOSITORY: ${{ github.repository }}
           GH_ISSUE_NUMBER: ${{ inputs.GITHUB_ISSUE_NUMBER }}
           GH_LABEL_NAME: ${{ inputs.GITHUB_LABEL_NAME }}
         run: |
-          $MAKE github-add-label \
+          if [[ "${GH_LABEL_ACTION}" != "add" && "${GH_LABEL_ACTION}" != "remove" ]]; then
+            echo "Invalid label action. Valid values are 'add' or 'remove'."
+            exit 1
+          fi
+          GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')
+          $MAKE github-${GH_LABEL_ACTION}-label \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
-              -r ${GH_REPOSITORY} \
+              -r ${GH_REPOSITORY_NAME} \
               -i ${GH_ISSUE_NUMBER} \
               -l '${GH_LABEL_NAME}'"
