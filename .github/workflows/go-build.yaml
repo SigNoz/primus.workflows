@@ -27,7 +27,10 @@ on:
         description: 'Whether to push the docker image or not.'
         required: true
         type: boolean
-
+      PROVIDERS:
+        description: 'Comma-separated list of providers (aws, gcp, dockerhub)'
+        required: true
+        type: string
 defaults:
   run:
     shell: bash
@@ -81,16 +84,17 @@ jobs:
           echo "GCP_PROJECT_ID=$($MAKE signoz-gcp-project-id)" >> $GITHUB_ENV
           echo "GCP_WORKLOAD_IDENTITY_PROVIDER=$($MAKE signoz-gcp-workload-identity-provider)" >> $GITHUB_ENV
           echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV
-      - name: gcp-auth
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/auth@v2'
-        with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
-      - name: sdk-install
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/setup-gcloud@v2'
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
+        env:
+          PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
+          WORKLOAD_IDENTITY_PROVIDER: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ env.GCP_SERVICE_ACCOUNT }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          $MAKE docker-login-gcp docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          IFS=',' read -r -a providers <<< "${{ inputs.PROVIDERS }}"
+          for provider in "${providers[@]}"; do
+            echo "Running make with target: docker-login-$provider"
+            $MAKE docker-login-$provider docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          done
