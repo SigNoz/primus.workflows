@@ -27,6 +27,11 @@ on:
         description: 'Whether to push the docker image or not.'
         required: true
         type: boolean
+      DOCKER_PROVIDERS:
+        description: 'The docker providers to use, separated by commas. (hub, gcp, aws)'
+        required: false
+        default: 'hub'
+        type: string
 
 defaults:
   run:
@@ -35,7 +40,7 @@ defaults:
 env:
   PRIMUS_HOME: .primus
   MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
-  
+
 jobs:
   go:
     runs-on: ubuntu-latest
@@ -75,14 +80,16 @@ jobs:
       - name: docker-build
         run: |
           $MAKE docker-build DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
-      - name: gcp-signoz
+      - name: docker-auth
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
           echo "GCP_PROJECT_ID=$($MAKE signoz-gcp-project-id)" >> $GITHUB_ENV
           echo "GCP_WORKLOAD_IDENTITY_PROVIDER=$($MAKE signoz-gcp-workload-identity-provider)" >> $GITHUB_ENV
-          echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV
+          echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV"
+          echo "HUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "HUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
       - name: gcp-auth
-        if: ${{ inputs.DOCKER_MANIFEST }}
+        if: ${{ inputs.DOCKER_MANIFEST }} && contains(inputs.DOCKER_PROVIDERS, 'gcp')
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
@@ -93,4 +100,8 @@ jobs:
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          $MAKE docker-login-gcp docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          IFS=',' read -ra PROVIDERS <<< "${{ inputs.DOCKER_PROVIDERS }}"
+          for provider in "${PROVIDERS[@]}"; do
+            echo "Building manifest for the $provider provider"
+            $MAKE docker-login-$provider docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          done
