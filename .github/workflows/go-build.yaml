@@ -81,10 +81,13 @@ jobs:
         run: |
           $MAKE docker-build DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
       - name: docker-auth-credentials
-        if: ${{ inputs.DOCKER_MANIFEST }}
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'hub') }}
         run: |
           echo "HUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
           echo "HUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
+      - name: gcp-auth-prepare
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'gcp') }}
+        run: |
           echo "GCP_PROJECT_ID=$($MAKE signoz-gcp-project-id)" >> $GITHUB_ENV
           echo "GCP_WORKLOAD_IDENTITY_PROVIDER=$($MAKE signoz-gcp-workload-identity-provider)" >> $GITHUB_ENV
           echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV
@@ -95,7 +98,7 @@ jobs:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
       - name: sdk-install
-        if: ${{ inputs.DOCKER_MANIFEST }}
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'gcp') }}
         uses: 'google-github-actions/setup-gcloud@v2'
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
