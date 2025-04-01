@@ -89,7 +89,7 @@ jobs:
           echo "HUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
           echo "HUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
       - name: gcp-auth
-        if: ${{ inputs.DOCKER_MANIFEST }} && contains(inputs.DOCKER_PROVIDERS, 'gcp')
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'gcp') }}
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
