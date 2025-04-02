@@ -47,7 +47,7 @@ on:
         required: true
         type: boolean
       DOCKER_PROVIDERS:
-        description: 'The docker providers to use, separated by commas. (hub, gcp, aws)'
+        description: 'The docker providers to use, separated by commas without spaces. (hub,gcp,aws)'
         default: 'hub'
         type: string
 
@@ -106,14 +106,14 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools
       - name: go-build
         run: |
-          if [ -n "${{ inputs.GO_NAME }}" ]; then
+          if [ "${{ inputs.GO_NAME }}" != "" ]; then
             $MAKE go-build NAME="${{ inputs.GO_NAME }}" GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}" GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}" GO_CGO_ENABLED="${{ inputs.GO_CGO_ENABLED }}"
           else
             $MAKE go-build GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}" GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}" GO_CGO_ENABLED="${{ inputs.GO_CGO_ENABLED }}"
           fi
       - name: docker-build
         run: |
-          if [ -n "${{ inputs.GO_NAME }}" ]; then
+          if [ "${{ inputs.GO_NAME }}" != "" ]; then
             $MAKE docker-build NAME="${{ inputs.GO_NAME }}" DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
           else
             $MAKE docker-build DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
@@ -144,7 +144,7 @@ jobs:
           IFS=',' read -ra PROVIDERS <<< "${{ inputs.DOCKER_PROVIDERS }}"
           for provider in "${PROVIDERS[@]}"; do
             echo "Building manifest for the $provider provider"
-            if [ -n "${{ inputs.GO_NAME }}" ]; then
+            if [ "${{ inputs.GO_NAME }}" != "" ]; then
               $MAKE docker-login-$provider docker-push docker-manifest NAME="${{ inputs.GO_NAME }}" DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
             else
               $MAKE docker-login-$provider docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"

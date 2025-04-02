@@ -47,7 +47,7 @@ on:
         default: 'amd64 arm64'
         type: string
       DOCKER_PROVIDERS:
-        description: 'The docker providers to use, separated by commas. (hub, gcp, aws)'
+        description: 'The docker providers to use, separated by commas without spaces. (hub,gcp,aws)'
         default: 'hub'
         type: string
 defaults:
