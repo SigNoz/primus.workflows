@@ -34,11 +34,9 @@ on:
         type: boolean
       DOCKER_BASE_IMAGES:
         description: 'List of docker base images in json.'
-        required: true
         type: string
       DOCKER_DOCKERFILE_PATH:
         description: 'Path to dockerfile.'
-        required: true
         type: string
       DOCKER_MANIFEST:
         description: 'Whether to push the docker image or not.'
