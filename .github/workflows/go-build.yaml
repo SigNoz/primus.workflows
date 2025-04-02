@@ -7,6 +7,18 @@ on:
         required: true
         default: 'main'
         type: string
+      GO_DOWNLOAD_ARTIFACT_NAME_PREFIX:
+        description: 'Prefix of the artifact to download. The artifact name will be ${GO_DOWNLOAD_ARTIFACT_NAME_PREFIX}-${{ github.sha }}.'
+        type: string
+      GO_DOWNLOAD_ARTIFACT_PATH:
+        description: 'Path of the artifact to download.'
+        type: string
+      GO_DOWNLOAD_ARTIFACT_REPO:
+        description: 'The repository to download the artifact from. If not provided, the default is the current repository.'
+        type: string
+      GO_DOWNLOAD_ARTIFACT_RUN_ID:
+        description: 'The run id of the artifact to download. If not provided, the default is the current run id.'
+        type: string
       GO_BUILD_CONTEXT:
         description: 'The directory path containing the main package.'
         required: true
@@ -14,6 +26,15 @@ on:
       GO_BUILD_FLAGS:
         description: 'Additional build flags to be passed.'
         required: true
+        type: string
+      GO_BUILD_PRE_FLAGS:
+        description: 'Additional build flags to be passed before the build. For example, "CGO_ENABLED=1" to enable CGO.'
+        type: string
+      GO_BUILD_PRE_FLAGS_ARM64:
+        description: 'Additional build flags to be passed before the build for arm64. For example, "CC=aarch64-linux-gnu-gcc" to use aarch64-linux-gnu-gcc as the compiler.'
+        type: string
+      GO_BUILD_PRE_FLAGS_AMD64:
+        description: 'Additional build flags to be passed before the build for amd64. For example, "CC=gcc" to use gcc as the compiler.'
         type: string
       DOCKER_BASE_IMAGES:
         description: 'List of docker base images in json.'
@@ -29,7 +50,6 @@ on:
         type: boolean
       DOCKER_PROVIDERS:
         description: 'The docker providers to use, separated by commas. (hub, gcp, aws)'
-        required: false
         default: 'hub'
         type: string
 
@@ -74,6 +94,14 @@ jobs:
       - name: info
         run: |
           $MAKE info
+      - name: download-artifact
+        if: ${{ inputs.GO_DOWNLOAD_ARTIFACT_NAME_PREFIX && inputs.GO_DOWNLOAD_ARTIFACT_PATH }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.GO_DOWNLOAD_ARTIFACT_NAME_PREFIX }}-${{ github.sha }}
+          path: ${{ inputs.GO_DOWNLOAD_ARTIFACT_PATH }}
+          repository: ${{ inputs.GO_DOWNLOAD_ARTIFACT_REPO || github.repository }}
+          run-id: ${{ inputs.GO_DOWNLOAD_ARTIFACT_RUN_ID || github.run_id }}
       - name: go-build
         run: |
           $MAKE go-build GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}" GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}"
