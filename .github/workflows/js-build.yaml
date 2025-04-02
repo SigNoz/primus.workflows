@@ -10,8 +10,8 @@ on:
       JS_WORKDIR:
         description: 'The working directory. If not provided, the defaults to the root of the repository.'
         type: string
-      JS_DOWNLOAD_ARTIFACT_NAME_PREFIX:
-        description: 'Prefix of the artifact to download. The artifact name will be ${JS_DOWNLOAD_ARTIFACT_NAME_PREFIX}-${{ github.sha }}.'
+      JS_DOWNLOAD_ARTIFACT_NAME:
+        description: 'The artifact name to download.'
         type: string
       JS_DOWNLOAD_ARTIFACT_PATH:
         description: 'Path of the artifact to download.'
@@ -22,8 +22,8 @@ on:
       JS_DOWNLOAD_ARTIFACT_RUN_ID:
         description: 'The run id of the artifact to download. If not provided, the default is the current run id.'
         type: string
-      JS_UPLOAD_ARTIFACT_NAME_PREFIX:
-        description: 'Prefix of the artifact to upload. The artifact name will be ${JS_UPLOAD_ARTIFACT_NAME_PREFIX}-${{ github.sha }}.'
+      JS_UPLOAD_ARTIFACT_NAME:
+        description: 'The artifact name to upload.'
         type: string
       JS_UPLOAD_ARTIFACT_PATH:
         description: 'Path of the artifact to upload.'
@@ -90,10 +90,10 @@ jobs:
         run: |
           $MAKE info
       - name: download-artifact
-        if: ${{ inputs.JS_DOWNLOAD_ARTIFACT_NAME_PREFIX && inputs.JS_DOWNLOAD_ARTIFACT_PATH }}
+        if: ${{ inputs.JS_DOWNLOAD_ARTIFACT_NAME && inputs.JS_DOWNLOAD_ARTIFACT_PATH }}
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.JS_DOWNLOAD_ARTIFACT_NAME_PREFIX }}-${{ github.sha }}
+          name: ${{ inputs.JS_DOWNLOAD_ARTIFACT_NAME }}
           path: ${{ inputs.JS_DOWNLOAD_ARTIFACT_PATH }}
           repository: ${{ inputs.JS_DOWNLOAD_ARTIFACT_REPO || github.repository }}
           run-id: ${{ inputs.JS_DOWNLOAD_ARTIFACT_RUN_ID || github.run_id }}
@@ -101,10 +101,10 @@ jobs:
         run: |
           $MAKE js-build
       - name: upload-artifact
-        if: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME_PREFIX && inputs.JS_UPLOAD_ARTIFACT_PATH }}
+        if: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME && inputs.JS_UPLOAD_ARTIFACT_PATH }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME_PREFIX }}-${{ github.sha }}
+          name: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME }}
           path: ${{ inputs.JS_UPLOAD_ARTIFACT_PATH }}
       - name: docker-build
         if: ${{ inputs.DOCKER_BUILD }}
