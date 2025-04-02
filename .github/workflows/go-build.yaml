@@ -100,6 +100,10 @@ jobs:
           path: ${{ inputs.GO_DOWNLOAD_ARTIFACT_PATH }}
           repository: ${{ inputs.GO_DOWNLOAD_ARTIFACT_REPO || github.repository }}
           run-id: ${{ inputs.GO_DOWNLOAD_ARTIFACT_RUN_ID || github.run_id }}
+      - name: cross-compilation-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools
       - name: go-build
         run: |
           $MAKE go-build NAME="${{ inputs.GO_NAME }}" GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}" GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}" GO_CGO_ENABLED="${{ inputs.GO_CGO_ENABLED }}"
