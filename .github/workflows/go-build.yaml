@@ -33,7 +33,7 @@ on:
       GO_CGO_ENABLED:
         description: 'Whether to enable CGO. Set to 1 to enable CGO. If not provided, the default is 0.'
         default: '0'
-        type: boolean
+        type: string
       DOCKER_BASE_IMAGES:
         description: 'List of docker base images in json.'
         required: true
