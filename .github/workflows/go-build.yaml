@@ -145,8 +145,8 @@ jobs:
           for provider in "${PROVIDERS[@]}"; do
             echo "Building manifest for the $provider provider"
             if [ "${{ inputs.GO_NAME }}" != "" ]; then
-              $MAKE docker-login-$provider docker-push docker-manifest NAME="${{ inputs.GO_NAME }}" DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+              $MAKE docker-login-$provider docker-push docker-manifest NAME="${{ inputs.GO_NAME }}" DOCKER_PROVIDER="$provider" DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
             else
-              $MAKE docker-login-$provider docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+              $MAKE docker-login-$provider docker-push docker-manifest DOCKER_PROVIDER="$provider" DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
             fi
           done
