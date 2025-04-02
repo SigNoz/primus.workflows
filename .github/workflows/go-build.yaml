@@ -7,6 +7,9 @@ on:
         required: true
         default: 'main'
         type: string
+      GO_NAME:
+        description: 'The name of the go project.'
+        type: string
       GO_DOWNLOAD_ARTIFACT_NAME:
         description: 'The artifact name to download.'
         type: string
@@ -104,10 +107,10 @@ jobs:
           run-id: ${{ inputs.GO_DOWNLOAD_ARTIFACT_RUN_ID || github.run_id }}
       - name: go-build
         run: |
-          $MAKE go-build GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}" GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}"
+          $MAKE go-build NAME="${{ inputs.GO_NAME }}" GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}" GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}"
       - name: docker-build
         run: |
-          $MAKE docker-build DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          $MAKE docker-build NAME="${{ inputs.GO_NAME }}" DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
       - name: docker-auth-credentials
         if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'hub') }}
         run: |
@@ -134,5 +137,5 @@ jobs:
           IFS=',' read -ra PROVIDERS <<< "${{ inputs.DOCKER_PROVIDERS }}"
           for provider in "${PROVIDERS[@]}"; do
             echo "Building manifest for the $provider provider"
-            $MAKE docker-login-$provider docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+            $MAKE docker-login-$provider docker-push docker-manifest NAME="${{ inputs.GO_NAME }}" DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
           done
