@@ -7,6 +7,22 @@ on:
         required: true
         default: 'main'
         type: string
+      JS_WORKDIR:
+        description: 'The working directory. If not provided, the defaults to the root of the repository.'
+        type: string
+      JS_ENV_CONTENT:
+        description: 'Content of the env file.'
+        type: string
+      JS_UPLOAD_ARTIFACT_NAME_PREFIX:
+        description: 'Prefix of the artifact to upload. The artifact name will be ${JS_UPLOAD_ARTIFACT_NAME_PREFIX}-${{ github.sha }}.'
+        type: string
+      JS_UPLOAD_ARTIFACT_PATH:
+        description: 'Path of the artifact to upload.'
+        type: string
+      DOCKER_BUILD:
+        description: 'Whether to build the docker image or not.'
+        default: true
+        type: boolean
       DOCKER_BASE_IMAGES:
         description: 'List of docker base images in json.'
         required: true
@@ -22,6 +38,10 @@ on:
       DOCKER_ARCHS:
         description: 'List of architectures to build the docker image.'
         default: 'amd64 arm64'
+        type: string
+      DOCKER_PROVIDERS:
+        description: 'The docker providers to use, separated by commas. (hub, gcp, aws)'
+        default: 'hub'
         type: string
 
 defaults:
@@ -61,7 +81,21 @@ jobs:
       - name: info
         run: |
           $MAKE info
+      - name: create-env
+        if: ${{ inputs.JS_ENV_CONTENT }}
+        run: |
+          echo -e "${{ inputs.JS_ENV_CONTENT }}" >> ${{ inputs.JS_WORKDIR }}/.env
+      - name: js-build
+        run: |
+          $MAKE js-build
+      - name: upload-artifact
+        if: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME_PREFIX && inputs.JS_UPLOAD_ARTIFACT_PATH }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME_PREFIX }}-${{ github.sha }}
+          path: ${{ inputs.JS_UPLOAD_ARTIFACT_PATH }}
       - name: docker-build
+        if: ${{ inputs.DOCKER_BUILD }}
         run: |
           $MAKE docker-build DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
       - name: gcp-signoz
@@ -82,4 +116,8 @@ jobs:
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          $MAKE docker-login-gcp docker-push docker-manifest DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          IFS=',' read -ra PROVIDERS <<< "${{ inputs.DOCKER_PROVIDERS }}"
+          for provider in "${PROVIDERS[@]}"; do
+            echo "Building manifest for the $provider provider"
+            $MAKE docker-login-$provider docker-push docker-manifest DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          done
