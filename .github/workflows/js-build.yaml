@@ -97,7 +97,7 @@ jobs:
           run-id: ${{ inputs.JS_DOWNLOAD_ARTIFACT_RUN_ID || github.run_id }}
       - name: js-build
         run: |
-          $MAKE js-build
+          $MAKE js-build JS_WORKDIR='${{ inputs.JS_WORKDIR }}'
       - name: upload-artifact
         if: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME && inputs.JS_UPLOAD_ARTIFACT_PATH }}
         uses: actions/upload-artifact@v4
