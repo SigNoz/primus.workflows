@@ -10,6 +10,7 @@ on:
       GO_NAME:
         description: 'The name of the go project.'
         type: string
+        default: 'undefined'
       GO_DOWNLOAD_ARTIFACT_NAME:
         description: 'The artifact name to download.'
         type: string
