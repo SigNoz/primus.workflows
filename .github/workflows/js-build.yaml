@@ -7,8 +7,8 @@ on:
         required: true
         default: 'main'
         type: string
-      JS_WORKDIR:
-        description: 'The working directory. If not provided, the defaults to the root of the repository.'
+      JS_SRC:
+        description: 'The path to the source directory. If not provided, the defaults to the root of the repository.'
         default: '.'
         type: string
       JS_DOTENV_CACHE_KEY:
@@ -87,10 +87,10 @@ jobs:
         uses: actions/cache@v4
         with:
           key: ${{ inputs.JS_DOTENV_CACHE_KEY }}
-          path: ${{ inputs.JS_WORKDIR }}/.env
+          path: ${{ inputs.JS_SRC }}/.env
       - name: js-build
         run: |
-          $MAKE js-build JS_WORKDIR='${{ inputs.JS_WORKDIR }}'
+          $MAKE js-build JS_SRC='${{ inputs.JS_SRC }}'
       - name: upload-artifact
         if: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME && inputs.JS_UPLOAD_ARTIFACT_PATH }}
         uses: actions/upload-artifact@v4
@@ -101,21 +101,6 @@ jobs:
         if: ${{ inputs.DOCKER_BUILD }}
         run: |
           $MAKE docker-build DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
-      - name: gcp-signoz
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        run: |
-          echo "GCP_PROJECT_ID=$($MAKE signoz-gcp-project-id)" >> $GITHUB_ENV
-          echo "GCP_WORKLOAD_IDENTITY_PROVIDER=$($MAKE signoz-gcp-workload-identity-provider)" >> $GITHUB_ENV
-          echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV
-      - name: gcp-auth
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/auth@v2'
-        with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
-      - name: sdk-install
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/setup-gcloud@v2'
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
