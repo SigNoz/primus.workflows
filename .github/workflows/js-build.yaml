@@ -9,16 +9,12 @@ on:
         type: string
       JS_WORKDIR:
         description: 'The working directory. If not provided, the defaults to the root of the repository.'
+        default: '.'
         type: string
-      JS_DOWNLOAD_ARTIFACT_NAME:
-        description: 'The artifact name to download.'
+      JS_DOTENV_CACHE_KEY:
+        description: 'The key to cache the dotenv file.'
         type: string
-      JS_DOWNLOAD_ARTIFACT_PATH:
-        description: 'Path of the artifact to download.'
-        type: string
-      JS_DOWNLOAD_ARTIFACT_REPO:
-        description: 'The repository to download the artifact from. If not provided, the default is the current repository.'
-        type: string
+        required: true
       JS_DOWNLOAD_ARTIFACT_RUN_ID:
         description: 'The run id of the artifact to download. If not provided, the default is the current run id.'
         type: string
@@ -87,14 +83,11 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: download-artifact
-        if: ${{ inputs.JS_DOWNLOAD_ARTIFACT_NAME && inputs.JS_DOWNLOAD_ARTIFACT_PATH }}
-        uses: actions/download-artifact@v4
+      - name: dotenv-cache
+        uses: actions/cache@v4
         with:
-          name: ${{ inputs.JS_DOWNLOAD_ARTIFACT_NAME }}
-          path: ${{ inputs.JS_DOWNLOAD_ARTIFACT_PATH }}
-          repository: ${{ inputs.JS_DOWNLOAD_ARTIFACT_REPO || github.repository }}
-          run-id: ${{ inputs.JS_DOWNLOAD_ARTIFACT_RUN_ID || github.run_id }}
+          key: ${{ inputs.JS_DOTENV_CACHE_KEY }}
+          path: ${{ inputs.JS_WORKDIR }}/.env
       - name: js-build
         run: |
           $MAKE js-build JS_WORKDIR='${{ inputs.JS_WORKDIR }}'
