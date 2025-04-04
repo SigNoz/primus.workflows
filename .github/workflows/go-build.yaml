@@ -130,8 +130,8 @@ jobs:
       - name: docker-auth
         if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
         run: |
-          echo "HUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
-          echo "HUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
