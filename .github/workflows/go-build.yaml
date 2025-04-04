@@ -135,4 +135,4 @@ jobs:
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          $MAKE docker-login docker-push docker-manifest
+          $MAKE docker-push docker-manifest
