@@ -108,19 +108,19 @@ jobs:
         run: |
           # Go build variables
           if [ "${{ inputs.GO_NAME }}" != "" ]; then
-            echo "NAME='${{ inputs.GO_NAME }}'" >> $GITHUB_ENV
+            echo "NAME=${{ inputs.GO_NAME }}" >> $GITHUB_ENV
           fi
-          echo "GO_BUILD_CONTEXT='${{ inputs.GO_BUILD_CONTEXT }}'" >> $GITHUB_ENV
-          echo "GO_CGO_ENABLED='${{ inputs.GO_CGO_ENABLED }}'" >> $GITHUB_ENV
-          echo "GO_BUILD_FLAGS='${{ inputs.GO_BUILD_FLAGS }}'" >> $GITHUB_ENV
+          echo "GO_BUILD_CONTEXT=${{ inputs.GO_BUILD_CONTEXT }}" >> $GITHUB_ENV
+          echo "GO_CGO_ENABLED=${{ inputs.GO_CGO_ENABLED }}" >> $GITHUB_ENV
+          echo "GO_BUILD_FLAGS=${{ inputs.GO_BUILD_FLAGS }}" >> $GITHUB_ENV
 
           # Docker build variables
-          echo ''DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}''' >> $GITHUB_ENV
-          echo "DOCKER_DOCKERFILE_PATH='${{ inputs.DOCKER_DOCKERFILE_PATH }}'" >> $GITHUB_ENV
+          echo 'DOCKER_BASE_IMAGES=${{ inputs.DOCKER_BASE_IMAGES }}' >> $GITHUB_ENV
+          echo "DOCKER_DOCKERFILE_PATH=${{ inputs.DOCKER_DOCKERFILE_PATH }}" >> $GITHUB_ENV
 
           # Docker manifest variables
-          echo "DOCKER_MANIFEST='${{ inputs.DOCKER_MANIFEST }}'" >> $GITHUB_ENV
-          echo "DOCKER_PROVIDERS='${{ inputs.DOCKER_PROVIDERS }}'" >> $GITHUB_ENV
+          echo "DOCKER_MANIFEST=${{ inputs.DOCKER_MANIFEST }}" >> $GITHUB_ENV
+          echo "DOCKER_PROVIDERS=${{ inputs.DOCKER_PROVIDERS }}" >> $GITHUB_ENV
       - name: go-build
         run: |
           $MAKE go-build
@@ -130,8 +130,8 @@ jobs:
       - name: docker-auth
         if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
         run: |
-          echo "HUB_USERNAME='${{ secrets.DOCKERHUB_USERNAME }}'" >> $GITHUB_ENV
-          echo "HUB_TOKEN='${{ secrets.DOCKERHUB_TOKEN }}'" >> $GITHUB_ENV
+          echo "HUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "HUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |

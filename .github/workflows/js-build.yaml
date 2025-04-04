@@ -90,12 +90,12 @@ jobs:
           path: ${{ inputs.JS_SRC }}/.env
       - name: build-variables
         run: |
-          echo "JS_SRC='${{ inputs.JS_SRC }}'" >> $GITHUB_ENV
-          echo "DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}'" >> $GITHUB_ENV
-          echo ''DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}''' >> $GITHUB_ENV
-          echo "DOCKER_DOCKERFILE_PATH='${{ inputs.DOCKER_DOCKERFILE_PATH }}'" >> $GITHUB_ENV
-          echo "DOCKER_MANIFEST='${{ inputs.DOCKER_MANIFEST }}'" >> $GITHUB_ENV
-          echo "DOCKER_PROVIDERS='${{ inputs.DOCKER_PROVIDERS }}'" >> $GITHUB_ENV
+          echo "JS_SRC=${{ inputs.JS_SRC }}" >> $GITHUB_ENV
+          echo "DOCKER_ARCHS=${{ inputs.DOCKER_ARCHS }}" >> $GITHUB_ENV
+          echo 'DOCKER_BASE_IMAGES=${{ inputs.DOCKER_BASE_IMAGES }}' >> $GITHUB_ENV
+          echo "DOCKER_DOCKERFILE_PATH=${{ inputs.DOCKER_DOCKERFILE_PATH }}" >> $GITHUB_ENV
+          echo "DOCKER_MANIFEST=${{ inputs.DOCKER_MANIFEST }}" >> $GITHUB_ENV
+          echo "DOCKER_PROVIDERS=${{ inputs.DOCKER_PROVIDERS }}" >> $GITHUB_ENV
       - name: js-build
         run: |
           $MAKE js-build
@@ -112,8 +112,8 @@ jobs:
       - name: docker-auth
         if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
         run: |
-          echo "DOCKERHUB_USERNAME='${{ secrets.DOCKERHUB_USERNAME }}'" >> $GITHUB_ENV
-          echo "DOCKERHUB_TOKEN='${{ secrets.DOCKERHUB_TOKEN }}'" >> $GITHUB_ENV
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
