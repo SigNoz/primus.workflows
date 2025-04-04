@@ -115,7 +115,7 @@ jobs:
           echo "GO_BUILD_FLAGS='${{ inputs.GO_BUILD_FLAGS }}'" >> $GITHUB_ENV
 
           # Docker build variables
-          echo "DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}'" >> $GITHUB_ENV
+          echo ''DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}''' >> $GITHUB_ENV
           echo "DOCKER_DOCKERFILE_PATH='${{ inputs.DOCKER_DOCKERFILE_PATH }}'" >> $GITHUB_ENV
 
           # Docker manifest variables
