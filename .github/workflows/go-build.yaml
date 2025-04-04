@@ -104,19 +104,34 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools
-      - name: go-build
+      - name: build-variables
         run: |
-          echo "GO_BUILD_CONTEXT=${{ inputs.GO_BUILD_CONTEXT }}" >> $GITHUB_ENV
-          echo "GO_BUILD_FLAGS=${{ inputs.GO_BUILD_FLAGS }}" >> $GITHUB_ENV
-          echo "GO_CGO_ENABLED=${{ inputs.GO_CGO_ENABLED }}" >> $GITHUB_ENV
+          # Go build variables
           if [ "${{ inputs.GO_NAME }}" != "" ]; then
             echo "GO_NAME=${{ inputs.GO_NAME }}" >> $GITHUB_ENV
+          fi
+          echo "GO_BUILD_CONTEXT=${{ inputs.GO_BUILD_CONTEXT }}" >> $GITHUB_ENV
+          echo "GO_CGO_ENABLED=${{ inputs.GO_CGO_ENABLED }}" >> $GITHUB_ENV
+          echo "GO_BUILD_FLAGS=${{ inputs.GO_BUILD_FLAGS }}" >> $GITHUB_ENV
+
+          # Docker build variables
+          echo "DOCKER_BASE_IMAGES=${{ inputs.DOCKER_BASE_IMAGES }}" >> $GITHUB_ENV
+          echo "DOCKER_DOCKERFILE_PATH=${{ inputs.DOCKER_DOCKERFILE_PATH }}" >> $GITHUB_ENV
+
+          # Docker manifest variables
+          echo "DOCKER_MANIFEST=${{ inputs.DOCKER_MANIFEST }}" >> $GITHUB_ENV
+          echo "DOCKER_PROVIDERS=${{ inputs.DOCKER_PROVIDERS }}" >> $GITHUB_ENV
+      - name: go-build
+        run: |
+          export GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}"
+          export GO_CGO_ENABLED="${{ inputs.GO_CGO_ENABLED }}"
+          export GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}"
+          if [ "${{ inputs.GO_NAME }}" != "" ]; then
+            export GO_NAME="${{ inputs.GO_NAME }}"
           fi
           $MAKE go-build
       - name: docker-build
         run: |
-          echo "DOCKER_BASE_IMAGES=${{ inputs.DOCKER_BASE_IMAGES }}" >> $GITHUB_ENV
-          echo "DOCKER_DOCKERFILE_PATH=${{ inputs.DOCKER_DOCKERFILE_PATH }}" >> $GITHUB_ENV
           $MAKE docker-build
       - name: docker-auth
         if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
@@ -126,6 +141,4 @@ jobs:
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          echo "DOCKER_PROVIDERS=${{ inputs.DOCKER_PROVIDERS }}" >> $GITHUB_ENV
-          echo "DOCKER_MANIFEST=${{ inputs.DOCKER_MANIFEST }}" >> $GITHUB_ENV
           $MAKE docker-push docker-manifest

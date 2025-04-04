@@ -88,9 +88,17 @@ jobs:
         with:
           key: ${{ inputs.JS_DOTENV_CACHE_KEY }}
           path: ${{ inputs.JS_SRC }}/.env
+      - name: build-variables
+        run: |
+          echo "JS_SRC=${{ inputs.JS_SRC }}" >> $GITHUB_ENV
+          echo "DOCKER_ARCHS=${{ inputs.DOCKER_ARCHS }}" >> $GITHUB_ENV
+          echo "DOCKER_BASE_IMAGES=${{ inputs.DOCKER_BASE_IMAGES }}" >> $GITHUB_ENV
+          echo "DOCKER_DOCKERFILE_PATH=${{ inputs.DOCKER_DOCKERFILE_PATH }}" >> $GITHUB_ENV
+          echo "DOCKER_MANIFEST=${{ inputs.DOCKER_MANIFEST }}" >> $GITHUB_ENV
+          echo "DOCKER_PROVIDERS=${{ inputs.DOCKER_PROVIDERS }}" >> $GITHUB_ENV
       - name: js-build
         run: |
-          $MAKE js-build JS_SRC='${{ inputs.JS_SRC }}'
+          $MAKE js-build
       - name: upload-artifact
         if: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME && inputs.JS_UPLOAD_ARTIFACT_PATH }}
         uses: actions/upload-artifact@v4
@@ -100,7 +108,7 @@ jobs:
       - name: docker-build
         if: ${{ inputs.DOCKER_BUILD }}
         run: |
-          $MAKE docker-build DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          $MAKE docker-build
       - name: docker-auth
         if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
         run: |
@@ -109,5 +117,4 @@ jobs:
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          echo "Building manifest for the $provider provider"
-          $MAKE docker-login docker-push docker-manifest DOCKER_PROVIDERS="${{ inputs.DOCKER_PROVIDERS }}" DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          $MAKE docker-login docker-push docker-manifest
