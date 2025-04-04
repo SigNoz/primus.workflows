@@ -42,8 +42,8 @@ on:
         default: 'amd64 arm64'
         type: string
       DOCKER_PROVIDERS:
-        description: 'The docker providers to use, separated by commas without spaces. (hub,gcp,aws)'
-        default: 'hub'
+        description: 'The docker providers to use, separated by spaces. (dockerhub gcp aws)'
+        default: 'gcp'
         type: string
 defaults:
   run:
@@ -101,11 +101,13 @@ jobs:
         if: ${{ inputs.DOCKER_BUILD }}
         run: |
           $MAKE docker-build DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+      - name: docker-auth
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
+        run: |
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          IFS=',' read -ra PROVIDERS <<< "${{ inputs.DOCKER_PROVIDERS }}"
-          for provider in "${PROVIDERS[@]}"; do
-            echo "Building manifest for the $provider provider"
-            $MAKE docker-login-$provider docker-push docker-manifest DOCKER_PROVIDER="$provider" DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
-          done
+          echo "Building manifest for the $provider provider"
+          $MAKE docker-login docker-push docker-manifest DOCKER_PROVIDERS="${{ inputs.DOCKER_PROVIDERS }}" DOCKER_ARCHS='${{ inputs.DOCKER_ARCHS }}' DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
