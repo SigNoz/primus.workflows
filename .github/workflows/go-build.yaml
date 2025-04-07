@@ -10,17 +10,17 @@ on:
       GO_NAME:
         description: 'The name of the go project.'
         type: string
-      GO_DOWNLOAD_ARTIFACT_NAME:
-        description: 'The artifact name to download.'
+      GO_INPUT_ARTIFACT_CACHE_KEY:
+        description: 'The key to cache the input artifacts.'
         type: string
-      GO_DOWNLOAD_ARTIFACT_PATH:
-        description: 'Path of the artifact to download.'
+      GO_INPUT_ARTIFACT_PATH:
+        description: 'The path to the input artifacts.'
         type: string
-      GO_DOWNLOAD_ARTIFACT_REPO:
-        description: 'The repository to download the artifact from. If not provided, the default is the current repository.'
+      GO_OUTPUT_ARTIFACT_CACHE_KEY:
+        description: 'The key to cache the output artifacts.'
         type: string
-      GO_DOWNLOAD_ARTIFACT_RUN_ID:
-        description: 'The run id of the artifact to download. If not provided, the default is the current run id.'
+      GO_OUTPUT_ARTIFACT_PATH:
+        description: 'The path to the output artifacts.'
         type: string
       GO_BUILD_CONTEXT:
         description: 'The directory path containing the main package.'
@@ -92,14 +92,12 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: download-artifact
-        if: ${{ inputs.GO_DOWNLOAD_ARTIFACT_NAME && inputs.GO_DOWNLOAD_ARTIFACT_PATH }}
-        uses: actions/download-artifact@v4
+      - name: input-artifacts-cache
+        if: ${{ inputs.GO_INPUT_ARTIFACT_CACHE_KEY }}
+        uses: actions/cache@v4
         with:
-          name: ${{ inputs.GO_DOWNLOAD_ARTIFACT_NAME }}
-          path: ${{ inputs.GO_DOWNLOAD_ARTIFACT_PATH }}
-          repository: ${{ inputs.GO_DOWNLOAD_ARTIFACT_REPO || github.repository }}
-          run-id: ${{ inputs.GO_DOWNLOAD_ARTIFACT_RUN_ID || github.run_id }}
+          key: ${{ inputs.GO_INPUT_ARTIFACT_CACHE_KEY }}
+          path: ${{ inputs.GO_INPUT_ARTIFACT_PATH }}
       - name: cross-compilation-tools
         run: |
           sudo apt-get update
@@ -124,6 +122,12 @@ jobs:
       - name: go-build
         run: |
           $MAKE go-build
+      - name: output-artifacts-cache
+        if: ${{ inputs.GO_OUTPUT_ARTIFACT_CACHE_KEY }}
+        uses: actions/cache@v4
+        with:
+          key: ${{ inputs.GO_OUTPUT_ARTIFACT_CACHE_KEY }}
+          path: ${{ inputs.GO_OUTPUT_ARTIFACT_PATH }}
       - name: docker-build
         run: |
           $MAKE docker-build

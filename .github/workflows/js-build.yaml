@@ -11,17 +11,17 @@ on:
         description: 'The path to the source directory. If not provided, the defaults to the root of the repository.'
         default: '.'
         type: string
-      JS_DOTENV_CACHE_KEY:
-        description: 'The key to cache the dotenv file.'
+      JS_INPUT_ARTIFACT_CACHE_KEY:
+        description: 'The key to cache the input artifacts.'
         type: string
-      JS_DOWNLOAD_ARTIFACT_RUN_ID:
-        description: 'The run id of the artifact to download. If not provided, the default is the current run id.'
+      JS_INPUT_ARTIFACT_PATH:
+        description: 'The path to the input artifacts.'
         type: string
-      JS_UPLOAD_ARTIFACT_NAME:
-        description: 'The artifact name to upload.'
+      JS_OUTPUT_ARTIFACT_CACHE_KEY:
+        description: 'The key to cache the output artifacts.'
         type: string
-      JS_UPLOAD_ARTIFACT_PATH:
-        description: 'Path of the artifact to upload.'
+      JS_OUTPUT_ARTIFACT_PATH:
+        description: 'The path to the output artifacts.'
         type: string
       DOCKER_BUILD:
         description: 'Whether to build the docker image or not.'
@@ -82,12 +82,12 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: dotenv-cache
-        if: ${{ inputs.JS_DOTENV_CACHE_KEY }}
+      - name: input-artifacts-cache
+        if: ${{ inputs.JS_INPUT_ARTIFACT_CACHE_KEY }}
         uses: actions/cache@v4
         with:
-          key: ${{ inputs.JS_DOTENV_CACHE_KEY }}
-          path: ${{ inputs.JS_SRC }}/.env
+          key: ${{ inputs.JS_INPUT_ARTIFACT_CACHE_KEY }}
+          path: ${{ inputs.JS_INPUT_ARTIFACT_PATH }}
       - name: build-variables
         run: |
           echo "JS_SRC=${{ inputs.JS_SRC }}" >> $GITHUB_ENV
@@ -99,12 +99,12 @@ jobs:
       - name: js-build
         run: |
           $MAKE js-build
-      - name: upload-artifact
-        if: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME && inputs.JS_UPLOAD_ARTIFACT_PATH }}
-        uses: actions/upload-artifact@v4
+      - name: output-artifacts-cache
+        if: ${{ inputs.JS_OUTPUT_ARTIFACT_CACHE_KEY }}
+        uses: actions/cache@v4
         with:
-          name: ${{ inputs.JS_UPLOAD_ARTIFACT_NAME }}
-          path: ${{ inputs.JS_UPLOAD_ARTIFACT_PATH }}
+          key: ${{ inputs.JS_OUTPUT_ARTIFACT_CACHE_KEY }}
+          path: ${{ inputs.JS_OUTPUT_ARTIFACT_PATH }}
       - name: docker-build
         if: ${{ inputs.DOCKER_BUILD }}
         run: |
