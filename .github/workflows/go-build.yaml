@@ -7,6 +7,21 @@ on:
         required: true
         default: 'main'
         type: string
+      GO_NAME:
+        description: 'The name of the go project.'
+        type: string
+      GO_INPUT_ARTIFACT_CACHE_KEY:
+        description: 'The key to cache the input artifacts.'
+        type: string
+      GO_INPUT_ARTIFACT_PATH:
+        description: 'The path to the input artifacts.'
+        type: string
+      GO_OUTPUT_ARTIFACT_CACHE_KEY:
+        description: 'The key to cache the output artifacts.'
+        type: string
+      GO_OUTPUT_ARTIFACT_PATH:
+        description: 'The path to the output artifacts.'
+        type: string
       GO_BUILD_CONTEXT:
         description: 'The directory path containing the main package.'
         required: true
@@ -14,6 +29,10 @@ on:
       GO_BUILD_FLAGS:
         description: 'Additional build flags to be passed.'
         required: true
+        type: string
+      GO_CGO_ENABLED:
+        description: 'Whether to enable CGO. Set to 1 to enable CGO. If not provided, the default is 0.'
+        default: '0'
         type: string
       DOCKER_BASE_IMAGES:
         description: 'List of docker base images in json.'
@@ -27,6 +46,10 @@ on:
         description: 'Whether to push the docker image or not.'
         required: true
         type: boolean
+      DOCKER_PROVIDERS:
+        description: 'The docker providers to use, separated by spaces. (dockerhub gcp aws)'
+        default: 'dockerhub'
+        type: string
 
 defaults:
   run:
@@ -35,7 +58,7 @@ defaults:
 env:
   PRIMUS_HOME: .primus
   MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
-  
+
 jobs:
   go:
     runs-on: ubuntu-latest
@@ -69,28 +92,51 @@ jobs:
       - name: info
         run: |
           $MAKE info
+      - name: input-artifacts-cache
+        if: ${{ inputs.GO_INPUT_ARTIFACT_CACHE_KEY }}
+        uses: actions/cache@v4
+        with:
+          key: ${{ inputs.GO_INPUT_ARTIFACT_CACHE_KEY }}
+          path: ${{ inputs.GO_INPUT_ARTIFACT_PATH }}
+      - name: cross-compilation-tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools
+      - name: build-variables
+        run: |
+          # Go build variables
+          if [ "${{ inputs.GO_NAME }}" != "" ]; then
+            echo "NAME=${{ inputs.GO_NAME }}" >> $GITHUB_ENV
+          fi
+          echo "GO_BUILD_CONTEXT=${{ inputs.GO_BUILD_CONTEXT }}" >> $GITHUB_ENV
+          echo "GO_CGO_ENABLED=${{ inputs.GO_CGO_ENABLED }}" >> $GITHUB_ENV
+          echo "GO_BUILD_FLAGS=${{ inputs.GO_BUILD_FLAGS }}" >> $GITHUB_ENV
+
+          # Docker build variables
+          echo 'DOCKER_BASE_IMAGES=${{ inputs.DOCKER_BASE_IMAGES }}' >> $GITHUB_ENV
+          echo "DOCKER_DOCKERFILE_PATH=${{ inputs.DOCKER_DOCKERFILE_PATH }}" >> $GITHUB_ENV
+
+          # Docker manifest variables
+          echo "DOCKER_MANIFEST=${{ inputs.DOCKER_MANIFEST }}" >> $GITHUB_ENV
+          echo "DOCKER_PROVIDERS=${{ inputs.DOCKER_PROVIDERS }}" >> $GITHUB_ENV
       - name: go-build
         run: |
-          $MAKE go-build GO_BUILD_CONTEXT="${{ inputs.GO_BUILD_CONTEXT }}" GO_BUILD_FLAGS="${{ inputs.GO_BUILD_FLAGS }}"
+          $MAKE go-build
+      - name: output-artifacts-cache
+        if: ${{ inputs.GO_OUTPUT_ARTIFACT_CACHE_KEY }}
+        uses: actions/cache@v4
+        with:
+          key: ${{ inputs.GO_OUTPUT_ARTIFACT_CACHE_KEY }}
+          path: ${{ inputs.GO_OUTPUT_ARTIFACT_PATH }}
       - name: docker-build
         run: |
-          $MAKE docker-build DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
-      - name: gcp-signoz
-        if: ${{ inputs.DOCKER_MANIFEST }}
+          $MAKE docker-build
+      - name: docker-auth
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
         run: |
-          echo "GCP_PROJECT_ID=$($MAKE signoz-gcp-project-id)" >> $GITHUB_ENV
-          echo "GCP_WORKLOAD_IDENTITY_PROVIDER=$($MAKE signoz-gcp-workload-identity-provider)" >> $GITHUB_ENV
-          echo "GCP_SERVICE_ACCOUNT=$($MAKE signoz-gcp-service-account)" >> $GITHUB_ENV
-      - name: gcp-auth
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/auth@v2'
-        with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
-      - name: sdk-install
-        if: ${{ inputs.DOCKER_MANIFEST }}
-        uses: 'google-github-actions/setup-gcloud@v2'
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
-          $MAKE docker-login-gcp docker-push docker-manifest DOCKER_BASE_IMAGES='${{ inputs.DOCKER_BASE_IMAGES }}' DOCKER_DOCKERFILE_PATH="${{ inputs.DOCKER_DOCKERFILE_PATH }}"
+          $MAKE docker-push docker-manifest
