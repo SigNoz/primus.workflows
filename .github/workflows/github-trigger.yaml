@@ -8,6 +8,9 @@ on:
         required: true
         default: 'main'
         type: string
+      GITHUB_SILENT:
+        description: 'Whether to run the Primus GitHub operation silently.'
+        type: boolean
       GITHUB_REPOSITORY_NAME:
         description: 'The name of the repository with the GitHub workflow to trigger.'
         required: true
@@ -57,14 +60,16 @@ jobs:
           $MAKE info
       - name: trigger
         env:
-          GH_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY_NAME }}
-          GH_EVENT_NAME: ${{ inputs.GITHUB_EVENT_NAME }}
           GH_EVENT_PAYLOAD: ${{ inputs.GITHUB_EVENT_PAYLOAD }}
         run: |
           GH_EVENT_PAYLOAD=$(echo "${GH_EVENT_PAYLOAD}" | jq -c . | jq -rR .)
-          echo "compacted GH_EVENT_PAYLOAD: ${GH_EVENT_PAYLOAD}"
+          ADDITIONAL_ARGS=""
+          if [ "${{ inputs.GITHUB_SILENT }}" = "true" ]; then
+            ADDITIONAL_ARGS="-s"
+          fi
           $MAKE github-event-trigger-workflow \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
-              -r ${GH_REPOSITORY} \
-              -e ${GH_EVENT_NAME} \
-              -p '${GH_EVENT_PAYLOAD}'"
+              -r ${{ inputs.GITHUB_REPOSITORY_NAME }} \
+              -e ${{ inputs.GITHUB_EVENT_NAME }} \
+              -p '${GH_EVENT_PAYLOAD}' \
+              ${ADDITIONAL_ARGS}"
