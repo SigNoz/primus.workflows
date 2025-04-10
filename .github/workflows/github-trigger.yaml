@@ -8,6 +8,13 @@ on:
         required: true
         default: 'main'
         type: string
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      GITHUB_SILENT:
+        description: 'Whether to run the Primus GitHub operation silently.'
+        type: boolean
       GITHUB_REPOSITORY_NAME:
         description: 'The name of the repository with the GitHub workflow to trigger.'
         required: true
@@ -42,8 +49,8 @@ jobs:
         name: github-token-gen
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.PRIMUS_APP_ID }}
-          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
       - name: primus-checkout
         uses: actions/checkout@v4
@@ -57,14 +64,16 @@ jobs:
           $MAKE info
       - name: trigger
         env:
-          GH_REPOSITORY: ${{ inputs.GITHUB_REPOSITORY_NAME }}
-          GH_EVENT_NAME: ${{ inputs.GITHUB_EVENT_NAME }}
           GH_EVENT_PAYLOAD: ${{ inputs.GITHUB_EVENT_PAYLOAD }}
         run: |
           GH_EVENT_PAYLOAD=$(echo "${GH_EVENT_PAYLOAD}" | jq -c . | jq -rR .)
-          echo "compacted GH_EVENT_PAYLOAD: ${GH_EVENT_PAYLOAD}"
+          ADDITIONAL_ARGS=""
+          if [ "${{ inputs.GITHUB_SILENT }}" = "true" ]; then
+            ADDITIONAL_ARGS="-s true"
+          fi
           $MAKE github-event-trigger-workflow \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
-              -r ${GH_REPOSITORY} \
-              -e ${GH_EVENT_NAME} \
-              -p '${GH_EVENT_PAYLOAD}'"
+              -r ${{ inputs.GITHUB_REPOSITORY_NAME }} \
+              -e ${{ inputs.GITHUB_EVENT_NAME }} \
+              -p '${GH_EVENT_PAYLOAD}' \
+              ${ADDITIONAL_ARGS}"
