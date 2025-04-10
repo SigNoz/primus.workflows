@@ -78,7 +78,7 @@ jobs:
           GH_EVENT_PAYLOAD=$(echo "${GH_EVENT_PAYLOAD}" | jq -c . | jq -rR .)
           ADDITIONAL_ARGS=""
           if [ "${{ inputs.GITHUB_SILENT }}" = "true" ]; then
-            ADDITIONAL_ARGS="-s"
+            ADDITIONAL_ARGS="-s true"
           fi
           $MAKE github-event-trigger-workflow \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
