@@ -8,6 +8,10 @@ on:
         required: true
         default: 'main'
         type: string
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
       GITHUB_SILENT:
         description: 'Whether to run the Primus GitHub operation silently.'
         type: boolean
@@ -45,8 +49,8 @@ jobs:
         name: github-token-gen
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.PRIMUS_APP_ID }}
-          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          app-id: ${{ if inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ if inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
       - name: primus-checkout
         uses: actions/checkout@v4
