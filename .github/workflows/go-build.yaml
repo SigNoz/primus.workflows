@@ -145,3 +145,7 @@ jobs:
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
           $MAKE docker-push docker-manifest
+      - name: docker-latest
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
+        run: |
+          $MAKE docker-push-dockerhub docker-manifest-dockerhub DOCKER_IMAGE_TAG=latest
