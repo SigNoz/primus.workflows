@@ -55,6 +55,11 @@ on:
         description: 'The docker providers to use, separated by spaces. (dockerhub gcp aws)'
         default: 'dockerhub'
         type: string
+      DOCKER_DOCKERHUB_TAG_LATEST:
+        description: 'Whether to push the latest tag or not to dockerhub. Works only when dockerhub has been set as a provider.'
+        required: false
+        type: boolean
+        default: true
 
 defaults:
   run:
@@ -147,6 +152,6 @@ jobs:
         run: |
           $MAKE docker-push docker-manifest
       - name: docker-latest
-        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
+        if: ${{ inputs.DOCKER_MANIFEST && inputs.DOCKER_DOCKERHUB_TAG_LATEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
         run: |
           $MAKE docker-push-dockerhub docker-manifest-dockerhub DOCKER_IMAGE_TAG=latest
