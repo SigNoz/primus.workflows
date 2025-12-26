@@ -77,6 +77,9 @@ jobs:
       contents: 'read'
       id-token: 'write'
     steps:
+      - name: runner-clean
+        run: |
+          rm -rf /opt/hostedtoolcache
       - name: self-checkout
         uses: actions/checkout@v4
       - id: token
