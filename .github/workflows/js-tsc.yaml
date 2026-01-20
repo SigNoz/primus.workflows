@@ -1,4 +1,4 @@
-name: js-fmt
+name: js-tsc
 on:
   workflow_call:
     inputs:
@@ -10,7 +10,7 @@ on:
       NODE_VERSION:
         description: 'The node version to use.'
         required: false
-        default: '22'
+        default: '20'
         type: string
       JS_SRC:
         description: 'The directory path containing the js source code.'
@@ -24,7 +24,7 @@ defaults:
 env:
   PRIMUS_HOME: .primus
   MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
-  
+
 jobs:
   js:
     runs-on: ubuntu-latest
@@ -55,9 +55,6 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ inputs.NODE_VERSION }}
-      - name: info
+      - name: tsc
         run: |
-          $MAKE info
-      - name: js-fmt
-        run: |
-          $MAKE js-fmt SRC="$(pwd)/${{ inputs.JS_SRC }}"
+          $MAKE js-tsc SRC="$(pwd)/${{ inputs.JS_SRC }}"

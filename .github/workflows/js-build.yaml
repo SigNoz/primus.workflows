@@ -7,6 +7,11 @@ on:
         required: true
         default: 'main'
         type: string
+      NODE_VERSION:
+        description: 'The node version to use.'
+        required: false
+        default: '22'
+        type: string
       JS_SRC:
         description: 'The path to the source directory. If not provided, the defaults to the root of the repository.'
         default: '.'
@@ -79,6 +84,10 @@ jobs:
           token: ${{ steps.token.outputs.token }}
       - name: qemu-install
         uses: docker/setup-qemu-action@v3
+      - name: node-install
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ inputs.NODE_VERSION }}
       - name: info
         run: |
           $MAKE info
