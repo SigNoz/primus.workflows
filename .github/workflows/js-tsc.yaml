@@ -10,7 +10,7 @@ on:
       NODE_VERSION:
         description: 'The node version to use.'
         required: false
-        default: '20'
+        default: '22'
         type: string
       JS_SRC:
         description: 'The directory path containing the js source code.'
