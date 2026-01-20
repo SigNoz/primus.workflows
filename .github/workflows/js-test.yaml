@@ -7,6 +7,11 @@ on:
         required: true
         default: 'main'
         type: string
+      NODE_VERSION:
+        description: 'The node version to use.'
+        required: false
+        default: '22'
+        type: string
       JS_SRC:
         description: 'The directory path containing the js source code.'
         required: true
@@ -46,6 +51,10 @@ jobs:
           ref: ${{ inputs.PRIMUS_REF }}
           path: .primus
           token: ${{ steps.token.outputs.token }}
+      - name: node-install
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ inputs.NODE_VERSION }}
       - name: info
         run: |
           $MAKE info
