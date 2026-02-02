@@ -14,18 +14,32 @@ defaults:
     shell: bash
 
 jobs:
-  signoz:
+  lint-kustomize:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
     steps:
-      - name: Code Checkout
-        uses: actions/checkout@v3
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
       - name: Verify Kustomize CLI Installation
         run: |
           which kustomize
           kustomize version
-      # - name: Validate Manifests
-      #   run: |
-      #     .github/workflows/scripts/validate_kustomize.sh
+      - name: Validate Manifests
+        run: |
+          $MAKE github-verify-team-membership
