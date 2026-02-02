@@ -42,4 +42,4 @@ jobs:
           kustomize version
       - name: Validate Manifests
         run: |
-          $MAKE github-verify-team-membership
+          $MAKE kustomize-lint
