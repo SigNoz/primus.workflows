@@ -53,7 +53,6 @@ jobs:
           GH_REPOSITORY: ${{ github.repository }}
           GH_PULL_NUMBER: ${{ inputs.PULL_NUMBER }}
         run: |
-          echo ${GH_PULL_NUMBER}
           GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')
           $MAKE github-pr-approve \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
