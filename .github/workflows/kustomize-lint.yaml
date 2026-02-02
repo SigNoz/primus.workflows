@@ -1,0 +1,31 @@
+name: kustomize-lint
+
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  signoz:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v3
+      - name: Verify Kustomize CLI Installation
+        run: |
+          which kustomize
+          kustomize version
+      # - name: Validate Manifests
+      #   run: |
+      #     .github/workflows/scripts/validate_kustomize.sh
