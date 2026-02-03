@@ -38,10 +38,6 @@ on:
         required: false
         type: int
         default: 5000
-      WEBHOOK:
-        description: 'Webhook URL for Slack alerts.'
-        required: false
-        type: string
 
 defaults:
   run:
@@ -144,5 +140,5 @@ jobs:
                 }
               ]
             }
-          webhook: ${{ inputs.WEBHOOK }}
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
