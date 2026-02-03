@@ -1,0 +1,148 @@
+name: github-automerge
+
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      MERGE_METHOD:
+        description: 'Method to use when merging the pull request into the base branch. Possible values are: merge, rebase, squash.'
+        required: false
+        type: string
+        default: 'squash'
+      MERGE_RETRIES:
+        description: 'Number of times the job will attempt to merge the PR.'
+        required: false
+        type: int
+        default: 3
+      MERGE_RETRY_SLEEP:
+        description: 'It sets the time to sleep between merge retries.'
+        required: false
+        type: int
+        default: 30000
+      UPDATE_METHOD:
+        description: 'Which method to use when updating the pull request to the base branch. Possible values are: merge, rebase.'
+        required: false
+        type: string
+        default: 'merge'
+      UPDATE_RETRIES:
+        description: 'Number of times the job will attempt to update the PR.'
+        required: false
+        type: int
+        default: 3
+      UPDATE_RETRY_SLEEP:
+        description: 'It sets the time to sleep between update retries.'
+        required: false
+        type: int
+        default: 5000
+      WEBHOOK:
+        description: 'Webhook URL for Slack alerts.'
+        required: false
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ secrets.NP_PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - id: automerge-attempt-1
+        name: automerge-attempt-1
+        uses: "pascalgn/automerge-action@v0.16.4"
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
+          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
+          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
+          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
+          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
+          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
+      - id: automerge-attempt-2
+        name: automerge-attempt-2
+        if: always() && (steps.automerge-attempt-1.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-1.outputs.mergeResult == 'not_ready')
+        uses: "pascalgn/automerge-action@v0.16.4"
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
+          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
+          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
+          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
+          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
+          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
+      - id: automerge-attempt-3
+        name: automerge-attempt-3
+        if: always() && (steps.automerge-attempt-2.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-2.outputs.mergeResult == 'not_ready')
+        uses: "pascalgn/automerge-action@v0.16.4"
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
+          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
+          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
+          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
+          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
+          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
+      - id: automerge-attempt-4
+        name: automerge-attempt-4
+        if: always() && (steps.automerge-attempt-3.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-3.outputs.mergeResult == 'not_ready')
+        uses: "pascalgn/automerge-action@v0.16.4"
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
+          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
+          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
+          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
+          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
+          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
+      - id: automerge-attempt-5
+        name: automerge-attempt-5
+        if: always() && (steps.automerge-attempt-4.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-4.outputs.mergeResult == 'not_ready')
+        uses: "pascalgn/automerge-action@v0.16.4"
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
+          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
+          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
+          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
+          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
+          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
+      - name: Notify Slack on failure
+        if: always() && (steps.automerge-attempt-5.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-5.outputs.mergeResult == 'not_ready')
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          payload: |
+            {
+              "text": "automerge failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after 5 attemps\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+          webhook: ${{ inputs.WEBHOOK }}
+          webhook-type: incoming-webhook
