@@ -12,11 +12,6 @@ on:
         required: true
         default: 'main'
         type: string
-      PULL_NUMBER:
-        description: 'The PR number to approve.'
-        required: false
-        type: string
-        default: ${{ github.event.pull_request.number}}
 
 defaults:
   run:
@@ -55,7 +50,7 @@ jobs:
       - name: approve
         env:
           GH_REPOSITORY: ${{ github.repository }}
-          GH_PULL_NUMBER: ${{ inputs.PULL_NUMBER }}
+          GH_PULL_NUMBER: ${{ github.event.pull_request.number}}
         run: |
           GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')
           $MAKE github-pr-approve \
