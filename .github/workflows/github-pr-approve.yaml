@@ -56,4 +56,4 @@ jobs:
           $MAKE github-pr-approve \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
               -r ${GH_REPOSITORY_NAME} \
-              -b ${GH_PULL_NUMBER}"
+              --pull-number ${GH_PULL_NUMBER}"
