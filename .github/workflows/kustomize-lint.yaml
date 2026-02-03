@@ -6,7 +6,6 @@ on:
       GITHUB_ENVIRONMENT:
         description: 'The environment to run the Primus GitHub operation in.'
         default: 'production'
-        required: true
         type: string
       PRIMUS_REF:
         description: 'The primus ref to checkout.'

@@ -6,7 +6,6 @@ on:
       GITHUB_ENVIRONMENT:
         description: 'The environment to run the Primus GitHub operation in.'
         default: 'production'
-        required: true
         type: string
       PRIMUS_REF:
         description: 'The primus ref to checkout.'
@@ -47,10 +46,6 @@ on:
 defaults:
   run:
     shell: bash
-
-env:
-  PRIMUS_HOME: .primus
-  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
 
 jobs:
   automerge:
@@ -140,7 +135,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after 5 attemps\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after 5 attempts\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                   }
                 }
               ]
