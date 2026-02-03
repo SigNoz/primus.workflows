@@ -16,13 +16,13 @@ on:
       MERGE_RETRIES:
         description: 'Number of times the job will attempt to merge the PR.'
         required: false
-        type: int
-        default: 3
+        type: string
+        default: '3'
       MERGE_RETRY_SLEEP:
         description: 'It sets the time to sleep between merge retries.'
         required: false
-        type: int
-        default: 30000
+        type: string
+        default: '30000'
       UPDATE_METHOD:
         description: 'Which method to use when updating the pull request to the base branch. Possible values are: merge, rebase.'
         required: false
@@ -31,13 +31,13 @@ on:
       UPDATE_RETRIES:
         description: 'Number of times the job will attempt to update the PR.'
         required: false
-        type: int
-        default: 3
+        type: string
+        default: '3'
       UPDATE_RETRY_SLEEP:
         description: 'It sets the time to sleep between update retries.'
         required: false
-        type: int
-        default: 5000
+        type: string
+        default: '5000'
 
 defaults:
   run:
