@@ -3,6 +3,11 @@ name: github-automerge
 on:
   workflow_call:
     inputs:
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        required: true
+        type: string
       PRIMUS_REF:
         description: 'The primus ref to checkout.'
         required: true
@@ -61,8 +66,8 @@ jobs:
         name: github-token-gen
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.NP_PRIMUS_APP_ID }}
-          private-key: ${{ secrets.NP_PRIMUS_PRIVATE_KEY }}
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
       - id: automerge-attempt-1
         name: automerge-attempt-1
