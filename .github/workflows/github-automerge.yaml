@@ -42,6 +42,11 @@ on:
         required: false
         type: string
         default: '5000'
+      MAX_ATTEMPTS:
+        description: 'Maximum number of automerge attempts.'
+        required: false
+        type: number
+        default: 5
 
 defaults:
   run:
@@ -54,6 +59,11 @@ jobs:
       contents: 'write'
       id-token: 'write'
       pull-requests: 'write'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        attempt: ${{ fromJson(format('[{0}]', join(fromJson('[1,2,3,4,5,6,7,8,9,10]')[0:inputs.MAX_ATTEMPTS], ','))) }}
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
@@ -64,9 +74,9 @@ jobs:
           app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
           private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-      - id: automerge-attempt-1
-        name: automerge-attempt-1
-        uses: "pascalgn/automerge-action@v0.16.4"
+      - name: Attempt automerge ${{ matrix.attempt }}
+        id: automerge
+        uses: pascalgn/automerge-action@v0.16.4
         env:
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
           MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
@@ -75,67 +85,22 @@ jobs:
           UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
           UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
           UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
-      - id: automerge-attempt-2
-        name: automerge-attempt-2
-        if: always() && (steps.automerge-attempt-1.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-1.outputs.mergeResult == 'not_ready')
-        uses: "pascalgn/automerge-action@v0.16.4"
-        env:
-          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
-          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
-          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
-          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
-          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
-          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
-      - id: automerge-attempt-3
-        name: automerge-attempt-3
-        if: always() && (steps.automerge-attempt-2.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-2.outputs.mergeResult == 'not_ready')
-        uses: "pascalgn/automerge-action@v0.16.4"
-        env:
-          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
-          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
-          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
-          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
-          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
-          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
-      - id: automerge-attempt-4
-        name: automerge-attempt-4
-        if: always() && (steps.automerge-attempt-3.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-3.outputs.mergeResult == 'not_ready')
-        uses: "pascalgn/automerge-action@v0.16.4"
-        env:
-          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
-          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
-          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
-          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
-          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
-          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
-      - id: automerge-attempt-5
-        name: automerge-attempt-5
-        if: always() && (steps.automerge-attempt-4.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-4.outputs.mergeResult == 'not_ready')
-        uses: "pascalgn/automerge-action@v0.16.4"
-        env:
-          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
-          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
-          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
-          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
-          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
-          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
-          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
-      - name: Notify Slack on failure
-        if: always() && (steps.automerge-attempt-5.outputs.mergeResult == 'merge_failed' || steps.automerge-attempt-5.outputs.mergeResult == 'not_ready')
+      - name: Notify Slack if final attempt failed
+        if: >
+          matrix.attempt == inputs.MAX_ATTEMPTS &&
+          always() &&
+          (steps.automerge.outputs.mergeResult == 'merge_failed' || steps.automerge.outputs.mergeResult == 'not_ready')
         uses: slackapi/slack-github-action@v2.1.1
         with:
           payload: |
             {
-              "text": "automerge failed",
+              "text": "automerge failed after ${{ inputs.MAX_ATTEMPTS }} attempts",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after 5 attempts\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after ${{ inputs.MAX_ATTEMPTS }} attempts\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                   }
                 }
               ]
