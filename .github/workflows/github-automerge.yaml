@@ -90,8 +90,6 @@ jobs:
       matrix:
         attempt: ${{ fromJson(needs.setup.outputs.attempts) }}
     steps:
-      # - name: self-checkout
-      #   uses: actions/checkout@v4
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
