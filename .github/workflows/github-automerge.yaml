@@ -112,7 +112,7 @@ jobs:
           UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
       - name: Notify Slack if final attempt failed
         if: >
-          matrix.attempt == needs.setup.outputs.max_attempts
+          matrix.attempt == needs.setup.outputs.max_attempts &&
           always() &&
           (steps.automerge.outputs.mergeResult == 'merge_failed' || steps.automerge.outputs.mergeResult == 'not_ready')
         uses: slackapi/slack-github-action@v2.1.1
