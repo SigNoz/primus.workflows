@@ -57,12 +57,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       attempts: ${{ steps.generate.outputs.attempts }}
+      max_attempts: ${{ steps.generate.outputs.max_attempts }}
     steps:
       - id: generate
         name: Generate attempt numbers 1..MAX_ATTEMPTS
         run: |
           MAX=${{ inputs.MAX_ATTEMPTS }}
-          # Safety: clamp between 1–20 to avoid abuse/fat-finger typos
+          # Restrict MAX_ATTEMPTS to be in range 1-20
           if (( MAX < 1 ));  then MAX=1;  fi
           if (( MAX > 20 )); then MAX=20; fi
 
@@ -75,6 +76,7 @@ jobs:
           json+="]"
 
           echo "attempts=$json" >> "$GITHUB_OUTPUT"
+          echo "max_attempts=$MAX" >> "$GITHUB_OUTPUT"
   automerge:
     needs: setup
     runs-on: ubuntu-latest
@@ -110,20 +112,20 @@ jobs:
           UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
       - name: Notify Slack if final attempt failed
         if: >
-          matrix.attempt == inputs.MAX_ATTEMPTS &&
+          matrix.attempt == needs.setup.outputs.max_attempts
           always() &&
           (steps.automerge.outputs.mergeResult == 'merge_failed' || steps.automerge.outputs.mergeResult == 'not_ready')
         uses: slackapi/slack-github-action@v2.1.1
         with:
           payload: |
             {
-              "text": "automerge failed after ${{ inputs.MAX_ATTEMPTS }} attempts",
+              "text": "automerge failed after ${{ needs.setup.outputs.max_attempts }} attempts",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after ${{ inputs.MAX_ATTEMPTS }} attempts\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after ${{ needs.setup.outputs.max_attempts }} attempts\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                   }
                 }
               ]

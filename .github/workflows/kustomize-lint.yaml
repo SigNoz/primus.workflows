@@ -47,10 +47,10 @@ jobs:
       - name: info
         run: |
           $MAKE info
-      - name: Verify Kustomize CLI Installation
+      - name: kustomise-cli
         run: |
           which kustomize
           kustomize version
-      - name: Validate Manifests
+      - name: kustomize-lint
         run: |
           $MAKE kustomize-lint
