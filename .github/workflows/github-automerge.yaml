@@ -18,17 +18,17 @@ on:
         type: string
         default: 'squash'
       MERGE_RETRIES:
-        description: 'Number of times the job will attempt to merge the PR.'
+        description: 'Number of times the job will attempt to merge the PR post performing update operation.'
         required: false
         type: string
         default: '3'
       MERGE_RETRY_SLEEP:
-        description: 'It sets the time to sleep between merge retries.'
+        description: 'Time to sleep between merge retries.'
         required: false
         type: string
         default: '30000'
       UPDATE_METHOD:
-        description: 'Which method to use when updating the pull request to the base branch. Possible values are: merge, rebase.'
+        description: 'Method to use when updating the pull request to the base branch. Possible values are: merge, rebase.'
         required: false
         type: string
         default: 'merge'
@@ -38,7 +38,7 @@ on:
         type: string
         default: '3'
       UPDATE_RETRY_SLEEP:
-        description: 'It sets the time to sleep between update retries.'
+        description: 'Time to sleep between update retries.'
         required: false
         type: string
         default: '5000'
