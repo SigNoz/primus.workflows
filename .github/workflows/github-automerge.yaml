@@ -60,7 +60,7 @@ jobs:
       max_attempts: ${{ steps.generate.outputs.max_attempts }}
     steps:
       - id: generate
-        name: Generate attempt numbers 1..MAX_ATTEMPTS
+        name: generate-attempts
         run: |
           MAX=${{ inputs.MAX_ATTEMPTS }}
           # Restrict MAX_ATTEMPTS to be in range 1-20
@@ -97,7 +97,7 @@ jobs:
           app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
           private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-      - name: Attempt automerge ${{ matrix.attempt }} / ${{ inputs.MAX_ATTEMPTS }}
+      - name: attempt-automerge(${{ matrix.attempt }}/${{ inputs.MAX_ATTEMPTS }})
         id: automerge
         uses: pascalgn/automerge-action@v0.16.4
         env:
@@ -108,7 +108,7 @@ jobs:
           UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
           UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
           UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
-      - name: Notify Slack if final attempt failed
+      - name: notify-slack
         if: >
           matrix.attempt == needs.setup.outputs.max_attempts &&
           always() &&
