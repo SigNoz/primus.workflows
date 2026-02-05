@@ -1,0 +1,132 @@
+name: github-automerge
+
+on:
+  workflow_call:
+    inputs:
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      MERGE_METHOD:
+        description: 'Method to use when merging the pull request into the base branch. Possible values are: merge, rebase, squash.'
+        required: false
+        type: string
+        default: 'squash'
+      MERGE_RETRIES:
+        description: 'Number of times the job will attempt to merge the PR post performing update operation.'
+        required: false
+        type: string
+        default: '3'
+      MERGE_RETRY_SLEEP:
+        description: 'Time to sleep between merge retries.'
+        required: false
+        type: string
+        default: '30000'
+      UPDATE_METHOD:
+        description: 'Method to use when updating the pull request to the base branch. Possible values are: merge, rebase.'
+        required: false
+        type: string
+        default: 'merge'
+      UPDATE_RETRIES:
+        description: 'Number of times the job will attempt to update the PR.'
+        required: false
+        type: string
+        default: '3'
+      UPDATE_RETRY_SLEEP:
+        description: 'Time to sleep between update retries.'
+        required: false
+        type: string
+        default: '5000'
+      MAX_ATTEMPTS:
+        description: 'Maximum number of automerge attempts.'
+        required: false
+        type: number
+        default: 5
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      attempts: ${{ steps.generate.outputs.attempts }}
+      max_attempts: ${{ steps.generate.outputs.max_attempts }}
+    steps:
+      - id: generate
+        name: generate-attempts
+        run: |
+          MAX=${{ inputs.MAX_ATTEMPTS }}
+          # Restrict MAX_ATTEMPTS to be in range 1-20
+          if (( MAX < 1 ));  then MAX=1;  fi
+          if (( MAX > 20 )); then MAX=20; fi
+
+          # Build JSON array: [1,2,3,...,$MAX]
+          json="["
+          for ((i=1; i<=MAX; i++)); do
+            json+="$i"
+            if (( i < MAX )); then json+=", "; fi
+          done
+          json+="]"
+
+          echo "attempts=$json" >> "$GITHUB_OUTPUT"
+          echo "max_attempts=$MAX" >> "$GITHUB_OUTPUT"
+  automerge:
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'write'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        attempt: ${{ fromJson(needs.setup.outputs.attempts) }}
+    steps:
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: attempt-automerge(${{ matrix.attempt }}/${{ inputs.MAX_ATTEMPTS }})
+        id: automerge
+        uses: pascalgn/automerge-action@v0.16.4
+        env:
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          MERGE_METHOD: ${{ inputs.MERGE_METHOD }}
+          MERGE_RETRIES: ${{ inputs.MERGE_RETRIES }}
+          MERGE_RETRY_SLEEP: ${{ inputs.MERGE_RETRY_SLEEP }}
+          UPDATE_METHOD: ${{ inputs.UPDATE_METHOD }}
+          UPDATE_RETRIES: ${{ inputs.UPDATE_RETRIES }}
+          UPDATE_RETRY_SLEEP: ${{ inputs.UPDATE_RETRY_SLEEP }}
+      - name: notify-slack
+        if: >
+          matrix.attempt == needs.setup.outputs.max_attempts &&
+          always() &&
+          (steps.automerge.outputs.mergeResult == 'merge_failed' || steps.automerge.outputs.mergeResult == 'not_ready')
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          payload: |
+            {
+              "text": "automerge failed after ${{ needs.setup.outputs.max_attempts }} attempts",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Workflow `${{ github.workflow }}` failed in job `automerge` after ${{ needs.setup.outputs.max_attempts }} attempts\nPR: <#${{ github.event.pull_request.number }}> (${{ github.event.pull_request.html_url }})\nRun: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
