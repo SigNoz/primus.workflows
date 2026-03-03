@@ -57,7 +57,7 @@ jobs:
         SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
       run: |
         GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')
-          $MAKE pr-update-merge \
+          $MAKE github-pr-update-merge \
             GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
               -r ${GH_REPOSITORY_NAME} \
               --pull-number ${GH_PULL_NUMBER} \
