@@ -57,9 +57,9 @@ jobs:
         SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
       run: |
         GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')
-          $MAKE github-pr-update-merge \
-            GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
-              -r ${GH_REPOSITORY_NAME} \
-              --pull-number ${GH_PULL_NUMBER} \
-              --max-attempts ${MAX_ATTEMPTS} \
-              --sleep-seconds ${SLEEP_SECONDS}"
+        $MAKE github-pr-update-merge \
+          GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
+            -r ${GH_REPOSITORY_NAME} \
+            --pull-number ${GH_PULL_NUMBER} \
+            --max-attempts ${MAX_ATTEMPTS} \
+            --sleep-seconds ${SLEEP_SECONDS}"
