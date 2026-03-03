@@ -27,6 +27,10 @@ defaults:
   run:
     shell: bash
 
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
 jobs:
   pr-update-merge:
     runs-on: ubuntu-latest
