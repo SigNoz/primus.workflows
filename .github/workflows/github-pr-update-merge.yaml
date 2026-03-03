@@ -1,0 +1,65 @@
+name: github-pr-update-merge
+
+on:
+  workflow_call:
+    inputs:
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      MAX_ATTEMPTS:
+        description: 'Maximum number of automerge attempts.'
+        required: true
+        type: number
+        default: 10
+      SLEEP_SECONDS:
+        description: 'Time to wait between each update-merge loop.'
+        required: true
+        type: number
+        default: 20
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  pr-update-merge:
+    runs-on: ubuntu-latest
+    steps:
+    - name: self-checkout
+      uses: actions/checkout@v4
+    - id: token
+      name: github-token-gen
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+        private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
+        owner: ${{ github.repository_owner }}
+    - name: primus-checkout
+      uses: actions/checkout@v4
+      with:
+        repository: signoz/primus
+        ref: ${{ inputs.PRIMUS_REF }}
+        path: .primus
+        token: ${{ steps.token.outputs.token }}
+    - name: info
+      run: |
+        $MAKE info
+    - name: update-merge
+      env:
+        GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
+      run: |
+        GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')
+          $MAKE pr-update-merge \
+            GITHUB_ARGS="-t ${{ steps.token.outputs.token }} \
+              -r ${GH_REPOSITORY_NAME} \
+              --pull-number ${GH_PULL_NUMBER} \
+              --max-attempts ${MAX_ATTEMPTS} \
+              --sleep-seconds ${SLEEP_SECONDS}"
