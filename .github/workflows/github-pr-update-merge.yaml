@@ -56,7 +56,8 @@ jobs:
         $MAKE info
     - name: update-merge
       env:
-        GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+        GH_REPOSITORY: ${{ github.repository }}
+        GH_PULL_NUMBER: ${{ github.event.pull_request.number}}
         MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
         SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
       run: |
