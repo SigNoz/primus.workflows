@@ -60,6 +60,7 @@ jobs:
         GH_PULL_NUMBER: ${{ github.event.pull_request.number}}
         MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
         SLEEP_SECONDS: ${{ inputs.SLEEP_SECONDS }}
+        GITHUB_TOKEN: ${{ steps.token.outputs.token }}
       run: |
         GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')
         $MAKE github-pr-update-merge \
