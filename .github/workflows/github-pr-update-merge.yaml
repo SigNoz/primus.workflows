@@ -9,17 +9,14 @@ on:
         type: string
       PRIMUS_REF:
         description: 'The primus ref to checkout.'
-        required: true
         default: 'main'
         type: string
       MAX_ATTEMPTS:
         description: 'Maximum number of automerge attempts.'
-        required: true
         type: number
-        default: 10
+        default: 2
       SLEEP_SECONDS:
         description: 'Time to wait between each update-merge loop.'
-        required: true
         type: number
         default: 20
 
