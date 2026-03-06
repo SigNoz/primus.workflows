@@ -3,9 +3,9 @@ on:
   workflow_call:
     inputs:
       PRIMUS_REF:
-        description: 'The primus ref to checkout.'
+        description: "The primus ref to checkout."
         required: true
-        default: 'main'
+        default: "main"
         type: string
 
 defaults:
@@ -15,19 +15,19 @@ defaults:
 env:
   PRIMUS_HOME: .primus
   MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
-  
+
 jobs:
   helm:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: "read"
+      id-token: "write"
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1

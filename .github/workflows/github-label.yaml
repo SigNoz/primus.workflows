@@ -16,11 +16,6 @@ on:
         description: 'The action to perform on the label. Valid values are "add" or "remove".'
         required: true
         type: string
-      GITHUB_ISSUE_NUMBER:
-        description: 'The issue number to add/remove the label from.'
-        required: false
-        type: string
-        default: ${{ github.event.pull_request.number || github.event.issue.number }}
       GITHUB_LABEL_NAME:
         description: 'The name of the label to add/remove.'
         required: true
@@ -60,11 +55,19 @@ jobs:
       - name: info
         run: |
           $MAKE info
+      - name: get-pr-number
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "number=$(echo '${{ github.ref }}' | grep -oP 'pr-\K[0-9]+')" >> $GITHUB_OUTPUT
+          else
+            echo "number=${{ github.event.pull_request.number || github.event.issue.number }}" >> $GITHUB_OUTPUT
+          fi
       - name: label
         env:
           GH_LABEL_ACTION: ${{ inputs.GITHUB_LABEL_ACTION }}
           GH_REPOSITORY: ${{ github.repository }}
-          GH_ISSUE_NUMBER: ${{ inputs.GITHUB_ISSUE_NUMBER }}
+          GH_ISSUE_NUMBER: ${{ steps.pr.outputs.number }}
           GH_LABEL_NAME: ${{ inputs.GITHUB_LABEL_NAME }}
         run: |
           GH_REPOSITORY_NAME=$(echo "${GH_REPOSITORY}" | awk -F'/' '{print $2}')

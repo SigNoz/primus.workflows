@@ -3,17 +3,17 @@ on:
   workflow_call:
     inputs:
       PRIMUS_REF:
-        description: 'The primus ref to checkout.'
+        description: "The primus ref to checkout."
         required: true
-        default: 'main'
+        default: "main"
         type: string
       NODE_VERSION:
-        description: 'The node version to use.'
+        description: "The node version to use."
         required: false
-        default: '22'
+        default: "22"
         type: string
       JS_SRC:
-        description: 'The directory path containing the js source code.'
+        description: "The directory path containing the js source code."
         required: true
         type: string
 
@@ -29,14 +29,14 @@ jobs:
   js:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: "read"
+      id-token: "write"
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1

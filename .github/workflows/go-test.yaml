@@ -3,21 +3,21 @@ on:
   workflow_call:
     inputs:
       PRIMUS_REF:
-        description: 'The primus ref to checkout.'
+        description: "The primus ref to checkout."
         required: true
-        default: 'main'
+        default: "main"
         type: string
       GO_VERSION:
-        description: 'The go version to use.'
+        description: "The go version to use."
         required: false
-        default: '1.22'
+        default: "1.22"
         type: string
       GO_TEST_CONTEXT:
-        description: 'The directory path containing the test packages.'
+        description: "The directory path containing the test packages."
         required: true
         type: string
       GO_TEST_TAGS:
-        description: 'Additional test tags to be passed.'
+        description: "Additional test tags to be passed."
         required: false
         type: string
 
@@ -28,19 +28,19 @@ defaults:
 env:
   PRIMUS_HOME: .primus
   MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
-  
+
 jobs:
   go:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: "read"
+      id-token: "write"
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
