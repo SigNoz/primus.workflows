@@ -55,6 +55,10 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ inputs.NODE_VERSION }}
+      - name: setup-pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - name: tsc
         run: |
           $MAKE js-tsc SRC="$(pwd)/${{ inputs.JS_SRC }}"
