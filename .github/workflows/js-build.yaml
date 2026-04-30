@@ -50,6 +50,16 @@ on:
         description: 'The docker providers to use, separated by spaces. (dockerhub gcp aws)'
         default: 'gcp'
         type: string
+      ENABLE_PNPM:
+        description: "Whether to enable pnpm or not."
+        required: false
+        default: false
+        type: boolean
+      PNPM_VERSION:
+        description: "The pnpm version to use."
+        required: false
+        default: "10"
+        type: string
 defaults:
   run:
     shell: bash
@@ -88,10 +98,11 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ inputs.NODE_VERSION }}
-      - name: setup-pnpm
-        uses: pnpm/action-setup@v4
+      - name: install-pnpm
+        if: ${{ inputs.ENABLE_PNPM }}
+        uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: ${{ inputs.PNPM_VERSION }}
       - name: info
         run: |
           $MAKE info
