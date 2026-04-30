@@ -16,6 +16,16 @@ on:
         description: "The directory path containing the js source code."
         required: true
         type: string
+      ENABLE_PNPM:
+        description: "Whether to enable pnpm or not."
+        required: false
+        default: false
+        type: boolean
+      PNPM_VERSION:
+        description: "The pnpm version to use."
+        required: false
+        default: "10"
+        type: string
 
 defaults:
   run:
@@ -55,6 +65,11 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: ${{ inputs.NODE_VERSION }}
+      - name: install-pnpm
+        if: ${{ inputs.ENABLE_PNPM }}
+        uses: pnpm/action-setup@v6
+        with:
+          version: ${{ inputs.PNPM_VERSION }}
       - name: info
         run: |
           $MAKE info
