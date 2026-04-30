@@ -76,3 +76,5 @@ jobs:
       - name: js-lint
         run: |
           $MAKE js-lint SRC="$(pwd)/${{ inputs.JS_SRC }}"
+        env:
+          JS_PKG_MANAGER: ${{ inputs.ENABLE_PNPM && 'pnpm' || 'yarn' }}

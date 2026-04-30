@@ -73,3 +73,5 @@ jobs:
       - name: tsc
         run: |
           $MAKE js-tsc SRC="$(pwd)/${{ inputs.JS_SRC }}"
+        env:
+          JS_PKG_MANAGER: ${{ inputs.ENABLE_PNPM && 'pnpm' || 'yarn' }}
