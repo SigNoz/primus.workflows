@@ -16,11 +16,11 @@ on:
         description: "The directory path containing the js source code."
         required: true
         type: string
-      ENABLE_PNPM:
-        description: "Whether to enable pnpm or not."
+      JS_PKG_MANAGER:
+        description: "Decide the name of the package manager to use."
         required: false
-        default: false
-        type: boolean
+        default: 'yarn'
+        type: string
       PNPM_VERSION:
         description: "The pnpm version to use."
         required: false
@@ -66,7 +66,7 @@ jobs:
         with:
           node-version: ${{ inputs.NODE_VERSION }}
       - name: install-pnpm
-        if: ${{ inputs.ENABLE_PNPM }}
+        if: ${{ inputs.JS_PKG_MANAGER == 'pnpm' }}
         uses: pnpm/action-setup@v6
         with:
           version: ${{ inputs.PNPM_VERSION }}
@@ -74,4 +74,4 @@ jobs:
         run: |
           $MAKE js-tsc SRC="$(pwd)/${{ inputs.JS_SRC }}"
         env:
-          JS_PKG_MANAGER: ${{ inputs.ENABLE_PNPM && 'pnpm' || 'yarn' }}
+          JS_PKG_MANAGER: ${{ inputs.JS_PKG_MANAGER }}
