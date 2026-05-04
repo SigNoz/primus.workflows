@@ -1,0 +1,77 @@
+name: js-tsc
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: "The primus ref to checkout."
+        required: true
+        default: "main"
+        type: string
+      NODE_VERSION:
+        description: "The node version to use."
+        required: false
+        default: "22"
+        type: string
+      JS_SRC:
+        description: "The directory path containing the js source code."
+        required: true
+        type: string
+      JS_PKG_MANAGER:
+        description: "Decide the name of the package manager to use."
+        required: false
+        default: 'yarn'
+        type: string
+      PNPM_VERSION:
+        description: "The pnpm version to use."
+        required: false
+        default: "10"
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  js:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: node-install
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ inputs.NODE_VERSION }}
+      - name: install-pnpm
+        if: ${{ inputs.JS_PKG_MANAGER == 'pnpm' }}
+        uses: pnpm/action-setup@v6
+        with:
+          version: ${{ inputs.PNPM_VERSION }}
+      - name: type-check
+        run: |
+          $MAKE js-type-check SRC="$(pwd)/${{ inputs.JS_SRC }}"
+        env:
+          JS_PKG_MANAGER: ${{ inputs.JS_PKG_MANAGER }}
