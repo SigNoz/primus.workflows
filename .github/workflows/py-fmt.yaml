@@ -68,6 +68,4 @@ jobs:
           $MAKE info
       - name: py-fmt
         run: |
-          $MAKE py-fmt SRC="$(pwd)/${{ inputs.PY_SRC }}"
-        env:
-          PY_PKG_MANAGER: ${{ inputs.PY_PKG_MANAGER }}
+          $MAKE py-fmt SRC="$(pwd)/${{ inputs.PY_SRC }}" PY_PKG_MANAGER="${{ inputs.PY_PKG_MANAGER }}"

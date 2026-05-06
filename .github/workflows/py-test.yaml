@@ -21,6 +21,11 @@ on:
         required: false
         default: 'uv'
         type: string
+      PY_TEST_FLAGS:
+        description: 'Additional flags and paths to pass to pytest (e.g. specific test files, --ignore, -m markers).'
+        required: false
+        default: ''
+        type: string
 
 defaults:
   run:
@@ -68,6 +73,4 @@ jobs:
           $MAKE info
       - name: py-test
         run: |
-          $MAKE py-test SRC="$(pwd)/${{ inputs.PY_SRC }}"
-        env:
-          PY_PKG_MANAGER: ${{ inputs.PY_PKG_MANAGER }}
+          $MAKE py-test SRC="$(pwd)/${{ inputs.PY_SRC }}" PY_PKG_MANAGER="${{ inputs.PY_PKG_MANAGER }}" PY_TEST_FLAGS="${{ inputs.PY_TEST_FLAGS }}"
