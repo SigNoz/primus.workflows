@@ -1,0 +1,120 @@
+name: py-build
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      PYTHON_VERSION:
+        description: 'The python version to use.'
+        required: false
+        default: '3.12'
+        type: string
+      PY_SRC:
+        description: 'The path to the source directory. If not provided, the defaults to the root of the repository.'
+        default: '.'
+        type: string
+      PY_PKG_MANAGER:
+        description: 'The python package manager to use.'
+        default: 'uv'
+        type: string
+      DOCKER_BUILD:
+        description: 'Whether to build the docker image or not.'
+        default: true
+        type: boolean
+      DOCKER_BASE_IMAGES:
+        description: 'List of docker base images in json.'
+        type: string
+      DOCKER_DOCKERFILE_PATH:
+        description: 'Path to dockerfile.'
+        type: string
+      DOCKER_MANIFEST:
+        description: 'Whether to push the docker image or not.'
+        required: true
+        type: boolean
+      DOCKER_ARCHS:
+        description: 'List of architectures to build the docker image.'
+        default: 'amd64 arm64'
+        type: string
+      DOCKER_PROVIDERS:
+        description: 'The docker providers to use, separated by spaces. (dockerhub gcp aws)'
+        default: 'gcp'
+        type: string
+      DOCKER_DOCKERHUB_TAG_LATEST:
+        description: 'Whether to push the latest tag or not to dockerhub. Works only when dockerhub has been set as a provider.'
+        required: false
+        type: boolean
+        default: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  py:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_type == 'tag' && 'production' || github.ref_name == 'main' && 'staging' || 'review' }}
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: qemu-install
+        uses: docker/setup-qemu-action@v3
+      - name: python-install
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.PYTHON_VERSION }}
+      - name: uv-install
+        if: ${{ inputs.PY_PKG_MANAGER == 'uv' }}
+        uses: astral-sh/setup-uv@v6
+      - name: info
+        run: |
+          $MAKE info
+      - name: build-variables
+        run: |
+          echo "PY_SRC=${{ inputs.PY_SRC }}" >> $GITHUB_ENV
+          echo "PY_PKG_MANAGER=${{ inputs.PY_PKG_MANAGER }}" >> $GITHUB_ENV
+          echo "DOCKER_ARCHS=${{ inputs.DOCKER_ARCHS }}" >> $GITHUB_ENV
+          echo 'DOCKER_BASE_IMAGES=${{ inputs.DOCKER_BASE_IMAGES }}' >> $GITHUB_ENV
+          echo "DOCKER_DOCKERFILE_PATH=${{ inputs.DOCKER_DOCKERFILE_PATH }}" >> $GITHUB_ENV
+          echo "DOCKER_MANIFEST=${{ inputs.DOCKER_MANIFEST }}" >> $GITHUB_ENV
+          echo "DOCKER_PROVIDERS=${{ inputs.DOCKER_PROVIDERS }}" >> $GITHUB_ENV
+      - name: docker-build
+        if: ${{ inputs.DOCKER_BUILD }}
+        run: |
+          $MAKE docker-build
+      - name: docker-auth
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
+        run: |
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
+          echo "DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
+      - name: docker-manifest
+        if: ${{ inputs.DOCKER_MANIFEST }}
+        run: |
+          $MAKE docker-push docker-manifest
+      - name: docker-latest
+        if: ${{ inputs.DOCKER_MANIFEST && inputs.DOCKER_DOCKERHUB_TAG_LATEST && contains(inputs.DOCKER_PROVIDERS, 'dockerhub') }}
+        run: |
+          $MAKE docker-push-dockerhub docker-manifest-dockerhub DOCKER_IMAGE_TAG=latest
