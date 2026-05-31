@@ -66,6 +66,8 @@ jobs:
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
