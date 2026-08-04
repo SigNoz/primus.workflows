@@ -12,6 +12,11 @@ on:
         required: false
         default: "1.22"
         type: string
+      GO_LINT_TIMEOUT:
+        description: "The timeout for go-lint pipeline."
+        required: false
+        default: "10m0s"
+        type: string
 
 defaults:
   run:
@@ -56,4 +61,4 @@ jobs:
           $MAKE info
       - name: go-lint
         run: |
-          $MAKE go-lint
+          $MAKE go-lint GO_LINT_TIMEOUT="${{ inputs.GO_LINT_TIMEOUT }}"
