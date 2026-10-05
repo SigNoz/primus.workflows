@@ -1,0 +1,71 @@
+name: yaml-lint
+on:
+  workflow_call:
+    inputs:
+      YAMLLINT_FILE_OR_DIR:
+        description: 'Space separated files or directories to lint. Takes precedence over the files computed from the pull request.'
+        required: false
+        default: ''
+        type: string
+      YAMLLINT_FORMAT:
+        description: 'The yamllint output format [parsable,standard,colored,github,auto].'
+        required: false
+        default: 'github'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  yaml:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: targets
+        name: yaml-targets
+        env:
+          FILE_OR_DIR: ${{ inputs.YAMLLINT_FILE_OR_DIR }}
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          files=""
+          if [[ -n "${FILE_OR_DIR}" ]]; then
+            echo "Files given in YAMLLINT_FILE_OR_DIR; using those"
+            files="${FILE_OR_DIR}"
+          elif [[ "${EVENT}" != "pull_request" ]]; then
+            echo "Not a pull request; linting whole repo"
+          else
+            changed=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")
+            echo "Changed files:"
+            echo "${changed}"
+
+            # The yamllint config applies to every file, so a change to it lints everything.
+            if grep -qE '^\.yamllint(\.ya?ml)?$' <<<"${changed}"; then
+              echo "yamllint config changed; linting whole repo"
+            else
+              # Lint changed yaml files; deleted files are excluded as there is nothing left to lint.
+              files=$(git diff --name-only --diff-filter=d "${BASE_SHA}...${HEAD_SHA}" -- '*.yaml' '*.yml' | sort -u | xargs)
+
+              if [[ -z "${files}" ]]; then
+                echo "No yaml files changed; skipping lint"
+                echo "skip=true" >> "${GITHUB_OUTPUT}"
+              else
+                echo "Linting: ${files}"
+              fi
+            fi
+          fi
+          echo "files=${files}" >> "${GITHUB_OUTPUT}"
+      - name: yaml-lint
+        if: steps.targets.outputs.skip != 'true'
+        # v3.1.1
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c
+        with:
+          file_or_dir: ${{ steps.targets.outputs.files }}
+          format: ${{ inputs.YAMLLINT_FORMAT }}
