@@ -12,6 +12,11 @@ on:
         required: true
         default: 'main'
         type: string
+      KUSTOMIZE_ARGS:
+        description: 'Extra arguments for kustomize.sh (e.g. "-s"). A -d here takes precedence over the directories computed from the pull request.'
+        required: false
+        default: ''
+        type: string
 
 defaults:
   run:
@@ -30,6 +35,8 @@ jobs:
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
@@ -51,6 +58,18 @@ jobs:
         run: |
           which kustomize
           kustomize version
+      - id: targets
+        name: kustomize-targets
+        env:
+          # The shas are empty outside pull requests, so the whole repo is targeted. A -d from the caller wins.
+          KUSTOMIZE_ARGS: -b "${{ github.event.pull_request.base.sha }}" -H "${{ github.event.pull_request.head.sha }}" ${{ inputs.KUSTOMIZE_ARGS }}
+        run: |
+          dirs=$($MAKE kustomize-targets)
+          echo "dirs=${dirs}" >> "${GITHUB_OUTPUT}"
       - name: kustomize-lint
+        if: steps.targets.outputs.dirs != ''
+        env:
+          # The targets go last so they replace any -d from the caller; kustomize-targets already honours it.
+          KUSTOMIZE_ARGS: ${{ inputs.KUSTOMIZE_ARGS }} -d ${{ steps.targets.outputs.dirs }}
         run: |
           $MAKE kustomize-lint
