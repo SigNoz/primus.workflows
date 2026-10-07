@@ -37,48 +37,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: targets
-        name: kustomize-targets
-        env:
-          ARGS: ${{ inputs.KUSTOMIZE_ARGS }}
-          EVENT: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          dirs=""
-          if [[ " ${ARGS} " == *" -d "* ]]; then
-            echo "Directories given in KUSTOMIZE_ARGS; using those"
-          elif [[ "${EVENT}" != "pull_request" ]]; then
-            echo "Not a pull request; linting whole repo"
-          else
-            changed=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")
-            echo "Changed files:"
-            echo "${changed}"
-
-            # Bases are shared by many overlays, so a change to one lints everything.
-            if grep -qE '(^|/)bases?/' <<<"${changed}"; then
-              echo "Base changed; linting whole repo"
-            else
-              # Lint the nearest kustomization above each changed file.
-              dirs=$(while IFS= read -r file; do
-                dir=$(dirname "${file}")
-                while [[ "${dir}" != "." && ! -f "${dir}/kustomization.yaml" ]]; do
-                  dir=$(dirname "${dir}")
-                done
-                if [[ -f "${dir}/kustomization.yaml" ]]; then
-                  echo "${dir}"
-                fi
-              done <<<"${changed}" | sort -u | xargs)
-
-              if [[ -z "${dirs}" ]]; then
-                echo "No kustomizations affected; skipping lint"
-                echo "skip=true" >> "${GITHUB_OUTPUT}"
-              else
-                echo "Linting: ${dirs}"
-              fi
-            fi
-          fi
-          echo "dirs=${dirs}" >> "${GITHUB_OUTPUT}"
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
@@ -100,10 +58,18 @@ jobs:
         run: |
           which kustomize
           kustomize version
-      - name: kustomize-lint
-        if: steps.targets.outputs.skip != 'true'
+      - id: targets
+        name: kustomize-targets
         env:
-          ARGS: ${{ inputs.KUSTOMIZE_ARGS }}
-          DIRS: ${{ steps.targets.outputs.dirs }}
+          # The shas are empty outside pull requests, so the whole repo is targeted. A -d from the caller wins.
+          KUSTOMIZE_ARGS: -b "${{ github.event.pull_request.base.sha }}" -H "${{ github.event.pull_request.head.sha }}" ${{ inputs.KUSTOMIZE_ARGS }}
         run: |
-          $MAKE kustomize-lint KUSTOMIZE_ARGS="${DIRS:+-d ${DIRS} }${ARGS}"
+          dirs=$($MAKE kustomize-targets)
+          echo "dirs=${dirs}" >> "${GITHUB_OUTPUT}"
+      - name: kustomize-lint
+        if: steps.targets.outputs.dirs != ''
+        env:
+          # The targets go last so they replace any -d from the caller; kustomize-targets already honours it.
+          KUSTOMIZE_ARGS: ${{ inputs.KUSTOMIZE_ARGS }} -d ${{ steps.targets.outputs.dirs }}
+        run: |
+          $MAKE kustomize-lint
