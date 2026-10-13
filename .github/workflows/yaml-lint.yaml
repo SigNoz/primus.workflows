@@ -1,0 +1,27 @@
+name: yaml-lint
+on:
+  workflow_call:
+    
+jobs:
+  yaml:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: yaml-targets
+        id: changed-yaml-files
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+        with:
+          files: |
+            **/*.yml
+            **/*.yaml
+      - name: Run yaml-lint action on changed files
+        if: steps.changed-yaml-files.outputs.any_changed == 'true'
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: ${{ steps.changed-yaml-files.outputs.all_changed_files }}
+          strict: true
