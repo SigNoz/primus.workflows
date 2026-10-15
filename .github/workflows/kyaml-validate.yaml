@@ -1,0 +1,64 @@
+name: kyaml-validate
+
+on:
+  workflow_call:
+    inputs:
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  kyaml:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - id: changed-files
+        name: changed-files
+        if: github.event_name == 'pull_request'
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: info
+        run: |
+          $MAKE info
+      - name: kyaml-validate
+        if: github.event_name != 'pull_request' || steps.changed-files.outputs.all_changed_and_modified_files != ''
+        env:
+          PATHS: ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
+        run: |
+          # Outside pull requests there are no paths, so the whole repo is validated.
+          if [[ -n "${PATHS}" ]]; then
+            $MAKE kyaml-validate KYAML_SRC="${PATHS}"
+          else
+            $MAKE kyaml-validate
+          fi
