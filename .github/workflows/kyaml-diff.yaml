@@ -1,0 +1,101 @@
+name: kyaml-diff
+
+on:
+  workflow_call:
+    inputs:
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  kyaml:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      pull-requests: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: info
+        run: |
+          $MAKE info
+      - id: kyaml-diff
+        name: kyaml-diff
+        env:
+          KYAML_DIFF_BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          status=0
+          $MAKE kyaml-diff > kyaml-diff.txt 2> >(tee kyaml-diff.err >&2) || status=$?
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          cat kyaml-diff.txt
+
+          errors=$(grep -vE '^(>> |make: )' kyaml-diff.err | sed 's/^/- /' || true)
+          {
+            echo "### kyaml diff"
+            echo
+            if [[ -n "${errors}" ]]; then
+              echo "**Errors**"
+              echo
+              echo "${errors}"
+              echo
+            fi
+            if [[ -s kyaml-diff.txt ]]; then
+              echo "<details><summary>$(grep -c '^+++ ' kyaml-diff.txt) resource(s) changed</summary>"
+              echo
+              echo '````diff'
+              head -c 60000 kyaml-diff.txt
+              echo '````'
+              if (( $(wc -c < kyaml-diff.txt) > 60000 )); then
+                echo
+                echo "Diff truncated, see the [job log](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) for the full output."
+              fi
+              echo
+              echo "</details>"
+            else
+              echo "No changes to rendered resources."
+            fi
+          } > kyaml-diff.md
+      - name: kyaml-diff-comment
+        if: steps.kyaml-diff.outcome == 'success'
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: kyaml-diff
+          path: kyaml-diff.md
+      - name: kyaml-diff-status
+        if: steps.kyaml-diff.outcome == 'success'
+        env:
+          KYAML_DIFF_STATUS: ${{ steps.kyaml-diff.outputs.status }}
+        run: |
+          exit "${KYAML_DIFF_STATUS}"
