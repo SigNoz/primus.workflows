@@ -1,0 +1,70 @@
+name: kyaml-validate
+
+on:
+  workflow_call:
+    inputs:
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  kyaml:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+      - name: info
+        run: |
+          $MAKE info
+      - name: kyaml-validate
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Outside pull requests the shas are empty, so the whole repo is validated.
+          if [[ -z "${BASE_SHA}" ]]; then
+            $MAKE kyaml-validate
+            exit
+          fi
+
+          # --no-renames lists a renamed file under its old path too, so the roots that
+          # referenced it are still validated.
+          paths=$(git diff --name-only --no-renames "${BASE_SHA}...${HEAD_SHA}" | tr '\n' ' ')
+          if [[ -z "${paths// }" ]]; then
+            echo "No files changed; skipping validate"
+            exit
+          fi
+          $MAKE kyaml-validate KYAML_SRC="${paths}"
