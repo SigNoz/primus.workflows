@@ -30,7 +30,7 @@ jobs:
           echo "files=${files% }" >> "${GITHUB_OUTPUT}"
       - name: Run yaml-lint action on changed files
         if: steps.changed-yaml-files.outputs.files != ''
-        uses: ibiqlik/action-yamllint@v3
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
         with:
           file_or_dir: ${{ steps.changed-yaml-files.outputs.files }}
           strict: true
