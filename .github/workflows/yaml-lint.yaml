@@ -14,14 +14,23 @@ jobs:
           fetch-depth: 0
       - name: yaml-targets
         id: changed-yaml-files
-        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
-        with:
-          files: |
-            **/*.yml
-            **/*.yaml
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # Without a base, such as the first push of a branch, every file is linted.
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" =~ ^0+$ ]]; then
+            echo "files=." >> "${GITHUB_OUTPUT}"
+            exit
+          fi
+
+          # Deleted files are left out, there is nothing left to lint.
+          files=$(git diff --name-only --diff-filter=d "${BASE_SHA}...${HEAD_SHA}" -- '*.yml' '*.yaml' | tr '\n' ' ')
+          echo "files=${files% }" >> "${GITHUB_OUTPUT}"
       - name: Run yaml-lint action on changed files
-        if: steps.changed-yaml-files.outputs.any_changed == 'true'
+        if: steps.changed-yaml-files.outputs.files != ''
         uses: ibiqlik/action-yamllint@v3
         with:
-          file_or_dir: ${{ steps.changed-yaml-files.outputs.all_changed_files }}
+          file_or_dir: ${{ steps.changed-yaml-files.outputs.files }}
           strict: true
