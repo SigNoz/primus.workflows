@@ -34,9 +34,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - id: changed-files
-        name: changed-files
-        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
@@ -56,10 +53,8 @@ jobs:
           $MAKE info
       - id: kyaml-diff
         name: kyaml-diff
-        if: steps.changed-files.outputs.all_changed_and_modified_files != ''
         env:
           KYAML_DIFF_BASE_REF: origin/${{ github.base_ref }}
-          KYAML_DIFF_PATHS: ${{ steps.changed-files.outputs.all_changed_and_modified_files }}
         run: |
           status=0
           $MAKE kyaml-diff > kyaml-diff.txt 2> >(tee kyaml-diff.err >&2) || status=$?
