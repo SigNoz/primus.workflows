@@ -1,0 +1,36 @@
+name: yaml-lint
+on:
+  workflow_call:
+    
+jobs:
+  yaml:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: yaml-targets
+        id: changed-yaml-files
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          # Without a base, such as the first push of a branch, every file is linted.
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" =~ ^0+$ ]]; then
+            echo "files=." >> "${GITHUB_OUTPUT}"
+            exit
+          fi
+
+          # Deleted files are left out, there is nothing left to lint.
+          files=$(git diff --name-only --diff-filter=d "${BASE_SHA}...${HEAD_SHA}" -- '*.yml' '*.yaml' | tr '\n' ' ')
+          echo "files=${files% }" >> "${GITHUB_OUTPUT}"
+      - name: Run yaml-lint action on changed files
+        if: steps.changed-yaml-files.outputs.files != ''
+        uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3.1.1
+        with:
+          file_or_dir: ${{ steps.changed-yaml-files.outputs.files }}
+          strict: true
