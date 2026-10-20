@@ -53,6 +53,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           # Outside pull requests the shas are empty, so the whole repo is validated.
           if [[ -z "${BASE_SHA}" ]]; then
