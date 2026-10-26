@@ -1,0 +1,108 @@
+name: kustomize-release
+
+on:
+  workflow_call:
+    inputs:
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      KUSTOMIZE_PATH:
+        description: 'The kustomization directory to edit, relative to the repository root.'
+        required: true
+        type: string
+      KUSTOMIZE_IMAGES:
+        description: 'The images to set, separated by whitespace, in kustomize edit set image syntax: [name=]newName[:tag|@digest].'
+        required: true
+        type: string
+      PR_TITLE:
+        description: 'The title of the pull request, also used as the commit message.'
+        required: true
+        type: string
+      PR_BRANCH:
+        description: 'The branch to push the changes to.'
+        required: true
+        type: string
+      PR_BASE:
+        description: 'The branch to open the pull request against. Defaults to the default branch of the repository.'
+        default: ''
+        type: string
+      PR_BODY:
+        description: 'The body of the pull request. Defaults to a link to the workflow run.'
+        default: ''
+        type: string
+    outputs:
+      PR_NUMBER:
+        description: 'The number of the pull request, empty if there was nothing to change.'
+        value: ${{ jobs.kustomize.outputs.pr-number }}
+      PR_URL:
+        description: 'The URL of the pull request, empty if there was nothing to change.'
+        value: ${{ jobs.kustomize.outputs.pr-url }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  kustomize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    outputs:
+      pr-number: ${{ steps.pull-request.outputs.pull-request-number }}
+      pr-url: ${{ steps.pull-request.outputs.pull-request-url }}
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@v4
+      - name: kustomize-edit
+        env:
+          KUSTOMIZE_PATH: ${{ inputs.KUSTOMIZE_PATH }}
+          KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
+        run: |
+          set -euo pipefail
+
+          # the path comes from the caller, so it must resolve to a kustomization inside the repository
+          resolved=$(realpath -e "${KUSTOMIZE_PATH}" 2>/dev/null || true)
+          if [[ "${resolved}" != "${GITHUB_WORKSPACE}"/* ]]; then
+            echo "error: ${KUSTOMIZE_PATH} is not a directory in the repository"
+            exit 1
+          fi
+          if [[ ! -f "${resolved}/kustomization.yaml" && ! -f "${resolved}/kustomization.yml" && ! -f "${resolved}/Kustomization" ]]; then
+            echo "error: ${KUSTOMIZE_PATH} has no kustomization file"
+            exit 1
+          fi
+
+          mapfile -t images < <(tr -s '[:space:]' '\n' <<< "${KUSTOMIZE_IMAGES}" | sed '/^$/d')
+          if [[ ${#images[@]} -eq 0 ]]; then
+            echo "error: KUSTOMIZE_IMAGES is empty"
+            exit 1
+          fi
+
+          (cd "${resolved}" && kustomize edit set image "${images[@]}")
+
+          # an image no container uses would be a silent no-op, so every new reference must show up in the build
+          rendered=$(kustomize build "${resolved}")
+          for image in "${images[@]}"; do
+            if ! grep -qF "${image#*=}" <<< "${rendered}"; then
+              echo "error: no container in ${KUSTOMIZE_PATH} uses ${image#*=}"
+              exit 1
+            fi
+          done
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.RELEASER_APP_ID || secrets.NP_RELEASER_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.RELEASER_PRIVATE_KEY || secrets.NP_RELEASER_PRIVATE_KEY }}
+      - id: pull-request
+        name: create-pull-request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ steps.token.outputs.token }}
+          sign-commits: true
+          add-paths: ${{ inputs.KUSTOMIZE_PATH }}
+          base: ${{ inputs.PR_BASE || github.event.repository.default_branch }}
+          branch: ${{ inputs.PR_BRANCH }}
+          commit-message: ${{ inputs.PR_TITLE }}
+          title: ${{ inputs.PR_TITLE }}
+          body: ${{ inputs.PR_BODY || format('Opened by {0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
