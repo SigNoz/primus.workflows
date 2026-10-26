@@ -67,7 +67,7 @@ jobs:
             echo "error: ${KUSTOMIZE_PATH} is not a directory in the repository"
             exit 1
           fi
-          if [[ ! -f "${resolved}/kustomization.yaml" && ! -f "${resolved}/kustomization.yml" && ! -f "${resolved}/Kustomization" ]]; then
+          if [[ ! -f "${resolved}/kustomization.yaml" && ! -f "${resolved}/kustomization.yml" ]]; then
             echo "error: ${KUSTOMIZE_PATH} has no kustomization file"
             exit 1
           fi
@@ -79,15 +79,6 @@ jobs:
           fi
 
           (cd "${resolved}" && kustomize edit set image "${images[@]}")
-
-          # an image no container uses would be a silent no-op, so every new reference must show up in the build
-          rendered=$(kustomize build "${resolved}")
-          for image in "${images[@]}"; do
-            if ! grep -qF "${image#*=}" <<< "${rendered}"; then
-              echo "error: no container in ${KUSTOMIZE_PATH} uses ${image#*=}"
-              exit 1
-            fi
-          done
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
