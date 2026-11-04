@@ -3,17 +3,25 @@ name: kustomize-release
 on:
   workflow_call:
     inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        default: 'main'
+        type: string
       GITHUB_ENVIRONMENT:
         description: 'The environment to run the Primus GitHub operation in.'
         default: 'production'
         type: string
       KUSTOMIZE_PATH:
-        description: 'The kustomization directory to edit, relative to the repository root.'
+        description: 'The kustomizations to release, as whitespace separated doublestar globs relative to the repository root. Every glob must match.'
         required: true
         type: string
       KUSTOMIZE_IMAGES:
-        description: 'The images to set, separated by whitespace, in kustomize edit set image syntax: [name=]newName[:tag|@digest].'
+        description: 'The images to set, separated by whitespace, as name:tag, name@digest or name:tag@digest.'
         required: true
+        type: string
+      KUSTOMIZE_OVERRIDES_PATH:
+        description: 'The kustomizations that may pin their own image, as whitespace separated doublestar globs. Their pins are updated to the new image too; when empty, they are kept.'
+        default: ''
         type: string
       PR_TITLE:
         description: 'The title of the pull request, also used as the commit message.'
@@ -43,6 +51,10 @@ defaults:
   run:
     shell: bash
 
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
 jobs:
   kustomize:
     runs-on: ubuntu-latest
@@ -54,31 +66,45 @@ jobs:
     steps:
       - name: self-checkout
         uses: actions/checkout@v4
-      - name: kustomize-edit
+      - id: primus-token
+        name: primus-token-gen
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@v4
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.primus-token.outputs.token }}
+      - id: kyaml-image-set
+        name: kyaml-image-set
         env:
           KUSTOMIZE_PATH: ${{ inputs.KUSTOMIZE_PATH }}
           KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
+          KUSTOMIZE_OVERRIDES_PATH: ${{ inputs.KUSTOMIZE_OVERRIDES_PATH }}
         run: |
           set -euo pipefail
 
-          # the path comes from the caller, so it must resolve to a kustomization inside the repository
-          resolved=$(realpath -e "${KUSTOMIZE_PATH}" 2>/dev/null || true)
-          if [[ "${resolved}" != "${GITHUB_WORKSPACE}"/* ]]; then
-            echo "error: ${KUSTOMIZE_PATH} is not a directory in the repository"
-            exit 1
-          fi
-          if [[ ! -f "${resolved}/kustomization.yaml" && ! -f "${resolved}/kustomization.yml" ]]; then
-            echo "error: ${KUSTOMIZE_PATH} has no kustomization file"
-            exit 1
-          fi
+          read -ra images <<< "${KUSTOMIZE_IMAGES}"
+          read -ra paths <<< "${KUSTOMIZE_PATH}"
+          read -ra overrides <<< "${KUSTOMIZE_OVERRIDES_PATH}"
 
-          mapfile -t images < <(tr -s '[:space:]' '\n' <<< "${KUSTOMIZE_IMAGES}" | sed '/^$/d')
-          if [[ ${#images[@]} -eq 0 ]]; then
-            echo "error: KUSTOMIZE_IMAGES is empty"
-            exit 1
-          fi
+          args=("${images[@]}" --summary "${GITHUB_STEP_SUMMARY}")
+          for p in "${paths[@]}"; do args+=(--path "${p}"); done
+          for p in "${overrides[@]}"; do args+=(--overrides "${p}"); done
 
-          (cd "${resolved}" && kustomize edit set image "${images[@]}")
+          # quoted so the recipe's shell passes the globs to kyaml unexpanded; kyaml prints the changed files on stdout
+          ${MAKE} kyaml-image-set KYAML_SRC="$(pwd)" KYAML_IMAGE_ARGS="$(printf '%q ' "${args[@]}")" > "${RUNNER_TEMP}/changed"
+
+          {
+            echo "paths<<EOF"
+            cat "${RUNNER_TEMP}/changed"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
       - id: token
         name: github-token-gen
         uses: actions/create-github-app-token@v1
@@ -87,11 +113,12 @@ jobs:
           private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.RELEASER_PRIVATE_KEY || secrets.NP_RELEASER_PRIVATE_KEY }}
       - id: pull-request
         name: create-pull-request
+        if: ${{ steps.kyaml-image-set.outputs.paths != '' }}
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.token.outputs.token }}
           sign-commits: true
-          add-paths: ${{ inputs.KUSTOMIZE_PATH }}
+          add-paths: ${{ steps.kyaml-image-set.outputs.paths }}
           base: ${{ inputs.PR_BASE || github.event.repository.default_branch }}
           branch: ${{ inputs.PR_BRANCH }}
           commit-message: ${{ inputs.PR_TITLE }}
