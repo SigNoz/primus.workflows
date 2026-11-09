@@ -149,6 +149,12 @@ jobs:
         run: |
           echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_ENV
           echo "DOCKERHUB_TOKEN=${{ secrets.DOCKERHUB_TOKEN }}" >> $GITHUB_ENV
+      - name: gcp-auth
+        if: ${{ inputs.DOCKER_MANIFEST && contains(inputs.DOCKER_PROVIDERS, 'gcp') }}
+        run: |
+          echo "GCP_PROJECT_ID=${{ secrets.PRIMUS_GCP_PROJECT_ID }}" >> $GITHUB_ENV
+          echo "GCP_SERVICE_ACCOUNT=${{ secrets.PRIMUS_GCP_SERVICE_ACCOUNT }}" >> $GITHUB_ENV
+          echo "GCP_WORKLOAD_IDENTITY_POOL=${{ secrets.PRIMUS_GCP_WORKLOAD_IDENTITY_POOL }}" >> $GITHUB_ENV
       - name: docker-manifest
         if: ${{ inputs.DOCKER_MANIFEST }}
         run: |
