@@ -81,25 +81,25 @@ jobs:
         run: |
           rm -rf /opt/hostedtoolcache
       - name: self-checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: token
         name: github-token-gen
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.PRIMUS_APP_ID }}
           private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
       - name: primus-checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: signoz/primus
           ref: ${{ inputs.PRIMUS_REF }}
           path: .primus
           token: ${{ steps.token.outputs.token }}
       - name: qemu-install
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - name: go-install
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ inputs.GO_VERSION }}
           cache: false
@@ -108,7 +108,7 @@ jobs:
           $MAKE info
       - name: input-artifacts-cache
         if: ${{ inputs.GO_INPUT_ARTIFACT_CACHE_KEY }}
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{ inputs.GO_INPUT_ARTIFACT_CACHE_KEY }}
           path: ${{ inputs.GO_INPUT_ARTIFACT_PATH }}
@@ -138,7 +138,7 @@ jobs:
           $MAKE go-build
       - name: output-artifacts-cache
         if: ${{ inputs.GO_OUTPUT_ARTIFACT_CACHE_KEY }}
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           key: ${{ inputs.GO_OUTPUT_ARTIFACT_CACHE_KEY }}
           path: ${{ inputs.GO_OUTPUT_ARTIFACT_PATH }}
