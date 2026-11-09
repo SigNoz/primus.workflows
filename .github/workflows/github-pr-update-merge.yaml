@@ -33,16 +33,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: self-checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - id: token
       name: github-token-gen
-      uses: actions/create-github-app-token@v1
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
       with:
         app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_APP_ID || secrets.NP_PRIMUS_APP_ID }}
         private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.PRIMUS_PRIVATE_KEY || secrets.NP_PRIMUS_PRIVATE_KEY }}
         owner: ${{ github.repository_owner }}
     - name: primus-checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: signoz/primus
         ref: ${{ inputs.PRIMUS_REF }}
