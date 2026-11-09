@@ -23,6 +23,10 @@ on:
         description: 'The kustomizations that may pin their own image, as whitespace separated doublestar globs. Their pins are updated to the new image too; when empty, they are kept.'
         default: ''
         type: string
+      KUSTOMIZE_CONTAINERS:
+        description: 'The containers to set the images in, separated by whitespace, such as an init container sharing the image of the main one. Defaults to all; when set, every kustomization must pin the image in one of them.'
+        default: ''
+        type: string
       PR_TITLE:
         description: 'The title of the pull request, also used as the commit message.'
         required: true
@@ -86,16 +90,19 @@ jobs:
           KUSTOMIZE_PATH: ${{ inputs.KUSTOMIZE_PATH }}
           KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
           KUSTOMIZE_OVERRIDES_PATH: ${{ inputs.KUSTOMIZE_OVERRIDES_PATH }}
+          KUSTOMIZE_CONTAINERS: ${{ inputs.KUSTOMIZE_CONTAINERS }}
         run: |
           set -euo pipefail
 
           read -ra images <<< "${KUSTOMIZE_IMAGES}"
           read -ra paths <<< "${KUSTOMIZE_PATH}"
           read -ra overrides <<< "${KUSTOMIZE_OVERRIDES_PATH}"
+          read -ra containers <<< "${KUSTOMIZE_CONTAINERS}"
 
           args=("${images[@]}" --summary "${GITHUB_STEP_SUMMARY}")
           for p in "${paths[@]}"; do args+=(--path "${p}"); done
           for p in "${overrides[@]}"; do args+=(--overrides "${p}"); done
+          for c in "${containers[@]}"; do args+=(--container "${c}"); done
 
           # quoted so the recipe's shell passes the globs to kyaml unexpanded; kyaml prints the changed files on stdout
           ${MAKE} kyaml-image-set KYAML_SRC="$(pwd)" KYAML_IMAGE_ARGS="$(printf '%q ' "${args[@]}")" > "${RUNNER_TEMP}/changed"
