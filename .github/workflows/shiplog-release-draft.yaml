@@ -1,0 +1,107 @@
+name: shiplog-release-draft
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      SHIPLOG_VERSION:
+        description: 'Run by hand: make the draft for this version, when the merge of the release PR started no run.'
+        required: false
+        default: ''
+        type: string
+      SHIPLOG_CONFIG:
+        description: 'The path to the shiplog configuration of the repository.'
+        required: false
+        default: '.shiplog/config.yaml'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    # On a push, only the merge of a release PR makes a draft.
+    if: "${{ github.event_name != 'release' && (inputs.SHIPLOG_VERSION != '' || startsWith(github.event.head_commit.message, 'chore(release): ')) }}"
+    permissions:
+      contents: 'write'
+    env:
+      SHIPLOG_CONFIG: ${{ inputs.SHIPLOG_CONFIG }}
+      SHIPLOG_VERSION: ${{ inputs.SHIPLOG_VERSION }}
+      SHIPLOG_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+          persist-credentials: false
+      - name: info
+        run: |
+          $MAKE info
+      - name: shiplog-release-draft
+        env:
+          # The draft comes from primus-bot, so that publishing it starts the tag pipelines.
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          $MAKE shiplog-release-draft
+
+  latest:
+    runs-on: ubuntu-latest
+    # Publishing marks a release Latest, even a fix from release/vX.Y. Put Latest back on the highest version.
+    if: ${{ github.event_name == 'release' }}
+    permissions:
+      contents: 'write'
+    env:
+      SHIPLOG_PUBLISHED_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+          persist-credentials: false
+      - name: info
+        run: |
+          $MAKE info
+      - name: shiplog-release-latest
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          $MAKE shiplog-release-latest

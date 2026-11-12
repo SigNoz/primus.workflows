@@ -1,0 +1,95 @@
+name: shiplog-prereleaser
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        required: true
+        default: 'main'
+        type: string
+      SHIPLOG_VERSION:
+        description: 'The version to release, such as v0.149.0. If empty, shiplog next picks it.'
+        required: false
+        default: ''
+        type: string
+      SHIPLOG_REFRESH:
+        description: 'Rebuild the open release PR from the base branch instead of opening a new one.'
+        required: false
+        default: false
+        type: boolean
+      SHIPLOG_PREPARE_COMMAND:
+        description: 'The repository step to run after shiplog update, such as hack/release.sh prepare. It gets VERSION.'
+        required: false
+        default: ''
+        type: string
+      SHIPLOG_CONFIG:
+        description: 'The path to the shiplog configuration of the repository.'
+        required: false
+        default: '.shiplog/config.yaml'
+        type: string
+      SHIPLOG_BASE_BRANCH:
+        description: 'The branch to release from.'
+        required: false
+        default: 'main'
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+concurrency:
+  group: shiplog-prereleaser-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  shiplog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'write'
+      pull-requests: 'write'
+    env:
+      SHIPLOG_CONFIG: ${{ inputs.SHIPLOG_CONFIG }}
+      SHIPLOG_BASE_BRANCH: ${{ inputs.SHIPLOG_BASE_BRANCH }}
+      SHIPLOG_VERSION: ${{ inputs.SHIPLOG_VERSION }}
+      SHIPLOG_REFRESH: ${{ inputs.SHIPLOG_REFRESH }}
+      SHIPLOG_PREPARE_COMMAND: ${{ inputs.SHIPLOG_PREPARE_COMMAND }}
+    steps:
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: self-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.SHIPLOG_BASE_BRANCH }}
+          fetch-depth: 0
+          # The release PR comes from primus-bot, so that checks run on it.
+          token: ${{ steps.token.outputs.token }}
+      - name: primus-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.token.outputs.token }}
+          persist-credentials: false
+      - name: git-configure
+        run: |
+          git config --global user.name "primus-bot[bot]"
+          git config --global user.email "171087277+primus-bot[bot]@users.noreply.github.com"
+      - name: info
+        run: |
+          $MAKE info
+      - name: shiplog-release-pr
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          $MAKE shiplog-release-pr
