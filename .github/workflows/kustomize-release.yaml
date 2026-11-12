@@ -64,6 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
+      id-token: 'write'
     outputs:
       pr-number: ${{ steps.pull-request.outputs.pull-request-number }}
       pr-url: ${{ steps.pull-request.outputs.pull-request-url }}
@@ -84,6 +85,31 @@ jobs:
           ref: ${{ inputs.PRIMUS_REF }}
           path: .primus
           token: ${{ steps.primus-token.outputs.token }}
+      - name: gcp-auth
+        if: ${{ contains(inputs.KUSTOMIZE_IMAGES, '-docker.pkg.dev/') }}
+        env:
+          GCP_SERVICE_ACCOUNT: ${{ secrets.PRIMUS_GCP_SERVICE_ACCOUNT }}
+          GCP_WORKLOAD_IDENTITY_POOL: ${{ secrets.PRIMUS_GCP_WORKLOAD_IDENTITY_POOL }}
+        run: |
+          ${MAKE} docker-login-gcp
+      - name: image-check
+        env:
+          KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
+        run: |
+          set -euo pipefail
+
+          # fail before opening a pull request that pins an image the cluster cannot pull
+          read -ra images <<< "${KUSTOMIZE_IMAGES}"
+          missing=0
+          for image in "${images[@]}"; do
+            if docker manifest inspect "${image}" > /dev/null; then
+              echo ">> found ${image}"
+            else
+              echo "::error::${image} does not exist upstream or cannot be read"
+              missing=1
+            fi
+          done
+          exit "${missing}"
       - id: kyaml-image-set
         name: kyaml-image-set
         env:
