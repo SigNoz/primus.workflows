@@ -1,0 +1,159 @@
+name: kustomize-release
+
+on:
+  workflow_call:
+    inputs:
+      PRIMUS_REF:
+        description: 'The primus ref to checkout.'
+        default: 'main'
+        type: string
+      GITHUB_ENVIRONMENT:
+        description: 'The environment to run the Primus GitHub operation in.'
+        default: 'production'
+        type: string
+      KUSTOMIZE_PATH:
+        description: 'The kustomizations to release, as whitespace separated doublestar globs relative to the repository root. Every glob must match.'
+        required: true
+        type: string
+      KUSTOMIZE_IMAGES:
+        description: 'The images to set, separated by whitespace, as name:tag, name@digest or name:tag@digest.'
+        required: true
+        type: string
+      KUSTOMIZE_OVERRIDES_PATH:
+        description: 'The kustomizations that may pin their own image, as whitespace separated doublestar globs. Their pins are updated to the new image too; when empty, they are kept.'
+        default: ''
+        type: string
+      KUSTOMIZE_CONTAINERS:
+        description: 'The containers to set the images in, separated by whitespace, such as an init container sharing the image of the main one. Defaults to all; when set, every kustomization must pin the image in one of them.'
+        default: ''
+        type: string
+      PR_TITLE:
+        description: 'The title of the pull request, also used as the commit message.'
+        required: true
+        type: string
+      PR_BRANCH:
+        description: 'The branch to push the changes to.'
+        required: true
+        type: string
+      PR_BASE:
+        description: 'The branch to open the pull request against. Defaults to the default branch of the repository.'
+        default: ''
+        type: string
+      PR_BODY:
+        description: 'The body of the pull request. Defaults to a link to the workflow run.'
+        default: ''
+        type: string
+    outputs:
+      PR_NUMBER:
+        description: 'The number of the pull request, empty if there was nothing to change.'
+        value: ${{ jobs.kustomize.outputs.pr-number }}
+      PR_URL:
+        description: 'The URL of the pull request, empty if there was nothing to change.'
+        value: ${{ jobs.kustomize.outputs.pr-url }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PRIMUS_HOME: .primus
+  MAKE: make --no-print-directory --makefile=.primus/src/make/main.mk
+
+jobs:
+  kustomize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    outputs:
+      pr-number: ${{ steps.pull-request.outputs.pull-request-number }}
+      pr-url: ${{ steps.pull-request.outputs.pull-request-url }}
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: primus-token
+        name: primus-token-gen
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.PRIMUS_APP_ID }}
+          private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: primus-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: signoz/primus
+          ref: ${{ inputs.PRIMUS_REF }}
+          path: .primus
+          token: ${{ steps.primus-token.outputs.token }}
+      - name: gcp-auth
+        if: ${{ contains(inputs.KUSTOMIZE_IMAGES, '-docker.pkg.dev/') }}
+        env:
+          GCP_SERVICE_ACCOUNT: ${{ secrets.PRIMUS_GCP_SERVICE_ACCOUNT }}
+          GCP_WORKLOAD_IDENTITY_POOL: ${{ secrets.PRIMUS_GCP_WORKLOAD_IDENTITY_POOL }}
+        run: |
+          ${MAKE} docker-login-gcp
+      - name: image-check
+        env:
+          KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
+        run: |
+          set -euo pipefail
+
+          # fail before opening a pull request that pins an image the cluster cannot pull
+          read -ra images <<< "${KUSTOMIZE_IMAGES}"
+          missing=0
+          for image in "${images[@]}"; do
+            if docker manifest inspect "${image}" > /dev/null; then
+              echo ">> found ${image}"
+            else
+              echo "::error::${image} does not exist upstream or cannot be read"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+      - id: kyaml-image-set
+        name: kyaml-image-set
+        env:
+          KUSTOMIZE_PATH: ${{ inputs.KUSTOMIZE_PATH }}
+          KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
+          KUSTOMIZE_OVERRIDES_PATH: ${{ inputs.KUSTOMIZE_OVERRIDES_PATH }}
+          KUSTOMIZE_CONTAINERS: ${{ inputs.KUSTOMIZE_CONTAINERS }}
+        run: |
+          set -euo pipefail
+
+          read -ra images <<< "${KUSTOMIZE_IMAGES}"
+          read -ra paths <<< "${KUSTOMIZE_PATH}"
+          read -ra overrides <<< "${KUSTOMIZE_OVERRIDES_PATH}"
+          read -ra containers <<< "${KUSTOMIZE_CONTAINERS}"
+
+          args=("${images[@]}" --summary "${GITHUB_STEP_SUMMARY}")
+          for p in "${paths[@]}"; do args+=(--path "${p}"); done
+          for p in "${overrides[@]}"; do args+=(--overrides "${p}"); done
+          for c in "${containers[@]}"; do args+=(--container "${c}"); done
+
+          # quoted so the recipe's shell passes the globs to kyaml unexpanded; kyaml prints the changed files on stdout
+          ${MAKE} kyaml-image-set KYAML_SRC="$(pwd)" KYAML_IMAGE_ARGS="$(printf '%q ' "${args[@]}")" > "${RUNNER_TEMP}/changed"
+
+          {
+            echo "paths<<EOF"
+            cat "${RUNNER_TEMP}/changed"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.RELEASER_APP_ID || secrets.NP_RELEASER_APP_ID }}
+          private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.RELEASER_PRIVATE_KEY || secrets.NP_RELEASER_PRIVATE_KEY }}
+      - id: pull-request
+        name: create-pull-request
+        if: ${{ steps.kyaml-image-set.outputs.paths != '' }}
+        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
+        with:
+          token: ${{ steps.token.outputs.token }}
+          sign-commits: true
+          add-paths: ${{ steps.kyaml-image-set.outputs.paths }}
+          base: ${{ inputs.PR_BASE || github.event.repository.default_branch }}
+          branch: ${{ inputs.PR_BRANCH }}
+          commit-message: ${{ inputs.PR_TITLE }}
+          title: ${{ inputs.PR_TITLE }}
+          body: ${{ inputs.PR_BODY || format('Opened by {0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
