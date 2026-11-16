@@ -15,16 +15,20 @@ on:
         description: 'The kustomizations to release, as whitespace separated doublestar globs relative to the repository root. Every glob must match.'
         required: true
         type: string
+      KUSTOMIZE_ACTION:
+        description: 'The kyaml image action, set or unset. unset removes the pins of the kustomizations so they inherit the image of their base.'
+        default: 'set'
+        type: string
       KUSTOMIZE_IMAGES:
-        description: 'The images to set, separated by whitespace, as name:tag, name@digest or name:tag@digest.'
+        description: 'The images to set, separated by whitespace, as name:tag, name@digest or name:tag@digest. For unset, the image names without a tag or digest.'
         required: true
         type: string
       KUSTOMIZE_OVERRIDES_PATH:
-        description: 'The kustomizations that may pin their own image, as whitespace separated doublestar globs. Their pins are updated to the new image too; when empty, they are kept.'
+        description: 'The kustomizations that may pin their own image, as whitespace separated doublestar globs. Their pins are updated to the new image too; when empty, they are kept. Only for set.'
         default: ''
         type: string
       KUSTOMIZE_CONTAINERS:
-        description: 'The containers to set the images in, separated by whitespace, such as an init container sharing the image of the main one. Defaults to all; when set, every kustomization must pin the image in one of them.'
+        description: 'The containers to set the images in, separated by whitespace, such as an init container sharing the image of the main one. Defaults to all; when set, every kustomization must pin the image in one of them. Only for set.'
         default: ''
         type: string
       PR_TITLE:
@@ -86,13 +90,14 @@ jobs:
           path: .primus
           token: ${{ steps.primus-token.outputs.token }}
       - name: gcp-auth
-        if: ${{ contains(inputs.KUSTOMIZE_IMAGES, '-docker.pkg.dev/') }}
+        if: ${{ inputs.KUSTOMIZE_ACTION == 'set' && contains(inputs.KUSTOMIZE_IMAGES, '-docker.pkg.dev/') }}
         env:
           GCP_SERVICE_ACCOUNT: ${{ secrets.PRIMUS_GCP_SERVICE_ACCOUNT }}
           GCP_WORKLOAD_IDENTITY_POOL: ${{ secrets.PRIMUS_GCP_WORKLOAD_IDENTITY_POOL }}
         run: |
           ${MAKE} docker-login-gcp
       - name: image-check
+        if: ${{ inputs.KUSTOMIZE_ACTION == 'set' }}
         env:
           KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
         run: |
@@ -110,15 +115,21 @@ jobs:
             fi
           done
           exit "${missing}"
-      - id: kyaml-image-set
-        name: kyaml-image-set
+      - id: kyaml-image
+        name: kyaml-image
         env:
+          KUSTOMIZE_ACTION: ${{ inputs.KUSTOMIZE_ACTION }}
           KUSTOMIZE_PATH: ${{ inputs.KUSTOMIZE_PATH }}
           KUSTOMIZE_IMAGES: ${{ inputs.KUSTOMIZE_IMAGES }}
           KUSTOMIZE_OVERRIDES_PATH: ${{ inputs.KUSTOMIZE_OVERRIDES_PATH }}
           KUSTOMIZE_CONTAINERS: ${{ inputs.KUSTOMIZE_CONTAINERS }}
         run: |
           set -euo pipefail
+
+          case "${KUSTOMIZE_ACTION}" in
+            set|unset) ;;
+            *) echo "::error::KUSTOMIZE_ACTION must be set or unset, got ${KUSTOMIZE_ACTION}"; exit 1 ;;
+          esac
 
           read -ra images <<< "${KUSTOMIZE_IMAGES}"
           read -ra paths <<< "${KUSTOMIZE_PATH}"
@@ -131,7 +142,7 @@ jobs:
           for c in "${containers[@]}"; do args+=(--container "${c}"); done
 
           # quoted so the recipe's shell passes the globs to kyaml unexpanded; kyaml prints the changed files on stdout
-          ${MAKE} kyaml-image-set KYAML_SRC="$(pwd)" KYAML_IMAGE_ARGS="$(printf '%q ' "${args[@]}")" > "${RUNNER_TEMP}/changed"
+          ${MAKE} "kyaml-image-${KUSTOMIZE_ACTION}" KYAML_SRC="$(pwd)" KYAML_IMAGE_ARGS="$(printf '%q ' "${args[@]}")" > "${RUNNER_TEMP}/changed"
 
           {
             echo "paths<<EOF"
@@ -146,12 +157,12 @@ jobs:
           private-key: ${{ inputs.GITHUB_ENVIRONMENT == 'production' && secrets.RELEASER_PRIVATE_KEY || secrets.NP_RELEASER_PRIVATE_KEY }}
       - id: pull-request
         name: create-pull-request
-        if: ${{ steps.kyaml-image-set.outputs.paths != '' }}
+        if: ${{ steps.kyaml-image.outputs.paths != '' }}
         uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
         with:
           token: ${{ steps.token.outputs.token }}
           sign-commits: true
-          add-paths: ${{ steps.kyaml-image-set.outputs.paths }}
+          add-paths: ${{ steps.kyaml-image.outputs.paths }}
           base: ${{ inputs.PR_BASE || github.event.repository.default_branch }}
           branch: ${{ inputs.PR_BRANCH }}
           commit-message: ${{ inputs.PR_TITLE }}
