@@ -64,7 +64,6 @@ jobs:
       - name: shiplog-release-draft
         env:
           # The draft comes from primus-bot, so that publishing it starts the tag pipelines.
-          GH_TOKEN: ${{ steps.token.outputs.token }}
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           $MAKE shiplog-release-draft
@@ -102,6 +101,6 @@ jobs:
           $MAKE info
       - name: shiplog-release-latest
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           $MAKE shiplog-release-latest

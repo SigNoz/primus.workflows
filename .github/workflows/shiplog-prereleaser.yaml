@@ -80,16 +80,28 @@ jobs:
           path: .primus
           token: ${{ steps.token.outputs.token }}
           persist-credentials: false
-      - name: git-configure
-        run: |
-          git config --global user.name "primus-bot[bot]"
-          git config --global user.email "171087277+primus-bot[bot]@users.noreply.github.com"
       - name: info
         run: |
           $MAKE info
-      - name: shiplog-release-pr
+      # shiplog only changes files. The next step commits them and opens or updates the release PR.
+      - id: shiplog
+        name: shiplog-release-pr
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
           GITHUB_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           $MAKE shiplog-release-pr
+      # With no file changed, this step closes the release PR and deletes its branch.
+      - id: pull-request
+        name: create-pull-request
+        if: ${{ steps.shiplog.outputs.skip != 'true' }}
+        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
+        with:
+          token: ${{ steps.token.outputs.token }}
+          sign-commits: true
+          base: ${{ inputs.SHIPLOG_BASE_BRANCH }}
+          branch: ${{ steps.shiplog.outputs.branch }}
+          delete-branch: true
+          commit-message: ${{ steps.shiplog.outputs.title }}
+          title: ${{ steps.shiplog.outputs.title }}
+          body-path: ${{ runner.temp }}/shiplog/body.md
+          labels: skip-changelog
