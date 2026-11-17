@@ -33,6 +33,10 @@ jobs:
     if: "${{ github.event_name != 'release' && (inputs.SHIPLOG_VERSION != '' || startsWith(github.event.head_commit.message, 'chore(release): ')) }}"
     permissions:
       contents: 'write'
+    # One draft run at a time, so that two runs do not both create the draft.
+    concurrency:
+      group: shiplog-release-draft-${{ github.repository }}
+      cancel-in-progress: false
     env:
       SHIPLOG_CONFIG: ${{ inputs.SHIPLOG_CONFIG }}
       SHIPLOG_VERSION: ${{ inputs.SHIPLOG_VERSION }}
@@ -50,6 +54,9 @@ jobs:
           app-id: ${{ secrets.PRIMUS_APP_ID }}
           private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          # The token reaches only this repo and primus. Releases need the contents permission.
+          repositories: primus,${{ github.event.repository.name }}
+          permission-contents: write
       - name: primus-checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -88,6 +95,9 @@ jobs:
           app-id: ${{ secrets.PRIMUS_APP_ID }}
           private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          # The token reaches only this repo and primus. Releases need the contents permission.
+          repositories: primus,${{ github.event.repository.name }}
+          permission-contents: write
       - name: primus-checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

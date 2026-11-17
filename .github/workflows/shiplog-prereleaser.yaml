@@ -65,6 +65,11 @@ jobs:
           app-id: ${{ secrets.PRIMUS_APP_ID }}
           private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          # The token reaches only this repo and primus. Labels and PR comments need the issues permission.
+          repositories: primus,${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
       - name: self-checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,6 +77,8 @@ jobs:
           fetch-depth: 0
           # The release PR comes from primus-bot, so that checks run on it.
           token: ${{ steps.token.outputs.token }}
+          # create-pull-request pushes with its own token. The prepare command gets no stored credentials.
+          persist-credentials: false
       - name: primus-checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

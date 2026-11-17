@@ -30,7 +30,8 @@ jobs:
   shiplog:
     runs-on: ubuntu-latest
     # In a merge queue the job is skipped, which counts as a pass. The PR already passed.
-    if: ${{ github.event_name == 'pull_request' && !contains(format(',{0},', inputs.SHIPLOG_SKIP_ACTORS), format(',{0},', github.event.pull_request.user.login)) }}
+    # A PR from a fork gets no secrets, so the job skips it. A maintainer adds its entry in a follow-up PR.
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && !contains(format(',{0},', inputs.SHIPLOG_SKIP_ACTORS), format(',{0},', github.event.pull_request.user.login)) }}
     permissions:
       contents: 'read'
       pull-requests: 'read'
@@ -52,6 +53,9 @@ jobs:
           app-id: ${{ secrets.PRIMUS_APP_ID }}
           private-key: ${{ secrets.PRIMUS_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
+          # The check reads primus only. It calls the API of the repo with github.token.
+          repositories: primus
+          permission-contents: read
       - name: primus-checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
