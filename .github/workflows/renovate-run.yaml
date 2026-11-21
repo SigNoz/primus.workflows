@@ -1,0 +1,80 @@
+name: renovate-run
+
+on:
+  workflow_dispatch:
+    inputs:
+      REPOSITORY_CACHE:
+        description: 'Whether to use the Renovate repository cache. "reset" starts from an empty cache.'
+        default: 'enabled'
+        type: choice
+        options:
+          - enabled
+          - disabled
+          - reset
+      LOG_LEVEL:
+        description: 'The Renovate log level.'
+        default: 'info'
+        type: choice
+        options:
+          - info
+          - debug
+  schedule:
+    # Every 2 hours, so the Monday window in renovate/default.json gets several chances
+    # and dashboard approvals and security updates are picked up during the week.
+    - cron: '17 */2 * * *'
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CACHE_DIR: /tmp/renovate/cache/renovate/repository
+  CACHE_KEY: renovate-repository
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    steps:
+      - name: self-checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: token
+        name: github-token-gen
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.RENOVATE_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - id: cache-restore
+        name: cache-restore
+        if: inputs.REPOSITORY_CACHE != 'disabled' && inputs.REPOSITORY_CACHE != 'reset'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ env.CACHE_KEY }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ env.CACHE_KEY }}-
+      # Renovate runs as uid 12021 in its container and has to own the restored cache.
+      - name: cache-chown
+        if: steps.cache-restore.outputs.cache-matched-key != ''
+        run: |
+          sudo chown -R 12021:0 /tmp/renovate/
+      - name: renovate
+        uses: renovatebot/github-action@2804199d260ad00c1fae0e9e842888369391c776 # v46.3.10
+        with:
+          configurationFile: renovate/config.js
+          token: ${{ steps.token.outputs.token }}
+        env:
+          RENOVATE_REPOSITORY_CACHE: ${{ inputs.REPOSITORY_CACHE || 'enabled' }}
+          LOG_LEVEL: ${{ inputs.LOG_LEVEL || 'info' }}
+      - name: cache-save
+        if: inputs.REPOSITORY_CACHE != 'disabled'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ env.CACHE_KEY }}-${{ github.run_id }}-${{ github.run_attempt }}
